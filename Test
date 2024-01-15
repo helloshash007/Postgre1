@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# Specify the directory where you want to unzip files
+target_directory="/path/to/your/directory"
+
+# Find all .gz files and unzip them
+find "$target_directory" -type f -name "*.gz" -exec gunzip {} \;
+
+echo "Unzipping complete."
