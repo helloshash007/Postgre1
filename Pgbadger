@@ -1,0 +1,13 @@
+# Logging Settings
+log_destination = 'stderr'                  # Log output destination (stderr, csvlog, syslog, ...)
+logging_collector = on                       # Enable capturing of stderr and csvlog
+log_statement = 'all'                        # Log all statements
+log_duration = on                            # Log duration of statements
+log_min_duration_statement = 0               # Log all statements with duration exceeding the specified time (in milliseconds)
+log_checkpoints = on                         # Log checkpoint activity
+log_connections = on                         # Log connection attempts
+log_disconnections = on                      # Log end of a session
+log_lock_waits = on                          # Log lock waits greater than deadlock_timeout
+log_temp_files = 0                           # Log temporary file usage exceeding the specified size (in kilobytes)
+log_autovacuum_min_duration = -1             # Log autovacuum activity exceeding the specified time (in milliseconds)
+log_error_verbosity = default                # Verbosity of logged messages: terse, default, or verbose
