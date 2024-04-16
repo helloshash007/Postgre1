@@ -1,0 +1,1 @@
+split -b 1G /var/log/postgresql/postgresql.log /var/log/postgresql/postgresql.log.part
