@@ -63,3 +63,32 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
+
+
+def log_postgres_queries():
+    try:
+        connection = psycopg2.connect(
+            host='your_postgres_host',
+            user='your_postgres_user',
+            password='your_postgres_password',
+            dbname='your_database'
+        )
+        
+        cursor = connection.cursor()
+        copy_command = "COPY (SELECT current_timestamp, pss.userid, pss.dbid, pd.datname as db_name, round(pss.total_time::numeric, 2) as total_time, pss.calls, round(pss.mean_time::numeric, 2) as mean, round((100 * pss.total_time / sum(pss.total_time::numeric) OVER ())::numeric, 2) as cpu_portion_pctg, pss.query FROM pg_stat_statements pss, pg_database pd WHERE pd.oid=pss.dbid ORDER BY pss.total_time DESC LIMIT 30) TO STDOUT CSV HEADER"
+        
+        with open('/path/to/postgres_cpu.csv', 'a') as f:
+            cursor.copy_expert(copy_command, f)
+        
+        cursor.close()
+        connection.commit()
+        connection.close()
+    except psycopg2.Error as e:
+        with open('/path/to/error_log.txt', 'a') as error_log:
+            error_log.write("Error in executing PostgreSQL query:\n")
+            error_log.write(str(e) + '\n')
+            error_log.write("===============================\n\n")
+
