@@ -1,0 +1,48 @@
+import subprocess
+import os
+import datetime
+import time
+
+def log_top_processes():
+    with open('/path/to/system_log.txt', 'a') as f:
+        f.write("===============================\n")
+        f.write(f"Timestamp: {datetime.datetime.now()}\n")
+        f.write("===============================\n")
+        
+        # Get top processes by CPU usage
+        top_processes = subprocess.Popen(['ps', 'aux'], stdout=subprocess.PIPE)
+        sorted_top_processes = subprocess.Popen(['sort', '-nrk', '3,3'], stdin=top_processes.stdout, stdout=subprocess.PIPE)
+        top_10_processes = subprocess.Popen(['head', '-n', '10'], stdin=sorted_top_processes.stdout, stdout=subprocess.PIPE)
+        top_processes.stdout.close()
+        sorted_top_processes.stdout.close()
+        top_processes = top_10_processes.communicate()[0]
+        f.write("Top processes by CPU usage:\n")
+        f.write(top_processes.decode())
+        f.write("===============================\n\n")
+    
+    # Log top PostgreSQL queries taking CPU
+    with open('/path/to/postgres_cpu.txt', 'a') as f:
+        f.write("===============================\n")
+        f.write(f"Timestamp: {datetime.datetime.now()}\n")
+        f.write("===============================\n")
+        
+        # Set the PGPASSWORD environment variable
+        os.environ['PGPASSWORD'] = 'your_postgres_password'
+        
+        postgres_top_queries = subprocess.Popen(['psql', '-h', 'your_postgres_host', '-U', 'your_postgres_user', '-d', 'your_database', '-c', 'SELECT pid, query FROM pg_stat_activity WHERE state = \'active\' ORDER BY cpu DESC'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        out, err = postgres_top_queries.communicate()
+        f.write("Top PostgreSQL queries by CPU usage:\n")
+        f.write(out.decode())
+        f.write("===============================\n\n")
+        if err:
+            f.write("Error in retrieving PostgreSQL queries:\n")
+            f.write(err.decode())
+            f.write("===============================\n\n")
+
+def main():
+    while True:
+        log_top_processes()
+        time.sleep(60)  # Wait for 60 seconds before checking again
+
+if __name__ == "__main__":
+    main()
