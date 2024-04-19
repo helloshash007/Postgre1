@@ -1,0 +1,65 @@
+import psycopg2
+import os
+import datetime
+import time
+import subprocess
+
+def get_top_processes():
+    top_processes = subprocess.Popen(['ps', 'aux'], stdout=subprocess.PIPE)
+    sorted_top_processes = subprocess.Popen(['sort', '-nrk', '3,3'], stdin=top_processes.stdout, stdout=subprocess.PIPE)
+    top_10_processes = subprocess.Popen(['head', '-n', '10'], stdin=sorted_top_processes.stdout, stdout=subprocess.PIPE)
+    top_processes.stdout.close()
+    sorted_top_processes.stdout.close()
+    top_processes_output = top_10_processes.communicate()[0]
+    return top_processes_output.decode()
+
+def log_postgres_queries():
+    try:
+        connection = psycopg2.connect(
+            host='your_postgres_host',
+            user='your_postgres_user',
+            password='your_postgres_password',
+            dbname='your_database'
+        )
+        
+        cursor = connection.cursor()
+        copy_command = "COPY (SELECT current_timestamp, pss.userid, pss.dbid, pd.datname as db_name, round(pss.total_time::numeric, 2) as total_time, pss.calls, round(pss.mean_time::numeric, 2) as mean, round((100 * pss.total_time / sum(pss.total_time::numeric) OVER ())::numeric, 2) as cpu_portion_pctg, pss.query FROM pg_stat_statements pss, pg_database pd WHERE pd.oid=pss.dbid ORDER BY pss.total_time DESC LIMIT 30) TO STDOUT CSV HEADER"
+        
+        with open('/path/to/postgres_cpu.csv', 'a') as f:
+            cursor.copy_expert(copy_command, f)
+        
+        cursor.close()
+        connection.commit()
+        connection.close()
+    except psycopg2.Error as e:
+        with open('/path/to/error_log.txt', 'a') as error_log:
+            error_log.write("Error in executing PostgreSQL query:\n")
+            error_log.write(str(e) + '\n')
+            error_log.write("===============================\n\n")
+
+def log_top_processes():
+    with open('/path/to/system_log.txt', 'a') as f:
+        f.write("===============================\n")
+        f.write(f"Timestamp: {datetime.datetime.now()}\n")
+        
+        # Get CPU utilization
+        cpu_percent = psutil.cpu_percent()
+        f.write(f"CPU Utilization: {cpu_percent}%\n")
+        f.write("===============================\n")
+        
+        # Get top processes by CPU usage
+        top_processes_output = get_top_processes()
+        f.write("Top processes by CPU usage:\n")
+        f.write(top_processes_output)
+        f.write("===============================\n\n")
+    
+    # Log PostgreSQL queries taking CPU to CSV file
+    log_postgres_queries()
+
+def main():
+    while True:
+        log_top_processes()
+        time.sleep(60)  # Wait for 60 seconds before checking again
+
+if __name__ == "__main__":
+    main()
