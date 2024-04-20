@@ -1,0 +1,92 @@
+import psycopg2
+import os
+import datetime
+import time
+import subprocess
+import csv
+
+LOG_DIR = '/path/to/logs'  # Change to your desired directory
+DB_PARAMS = {
+    'host': 'your_postgres_host',
+    'user': 'your_postgres_user',
+    'password': 'your_postgres_password',
+    'dbname': 'your_database'
+}
+
+def get_top_pids():
+    # Get top CPU-consuming processes with their PIDs
+    top_processes = subprocess.Popen(['ps', 'aux'], stdout=subprocess.PIPE)
+    sorted_top_processes = subprocess.Popen(['sort', '-nrk', '3,3'], stdin=top_processes.stdout, stdout=subprocess.PIPE)
+    top_10_processes = subprocess.Popen(['head', '-n', '10'], stdin=sorted_top_processes.stdout, stdout=subprocess.PIPE)
+    top_processes.stdout.close()
+    sorted_top_processes.stdout.close()
+    top_processes_output = top_10_processes.communicate()[0].decode()
+    
+    pids = []
+    for line in top_processes_output.splitlines():
+        columns = line.split()
+        if len(columns) > 1:
+            pid = columns[1]  # Extract the PID from the 2nd column
+            pids.append(pid)
+    return pids
+
+def query_postgres_by_pid(pid):
+    try:
+        connection = psycopg2.connect(**DB_PARAMS)
+        cursor = connection.cursor()
+
+        query = """
+        SELECT pid, query
+        FROM pg_stat_activity
+        WHERE pid = %s
+        """
+        
+        cursor.execute(query, (pid,))
+        result = cursor.fetchone()
+        
+        cursor.close()
+        connection.close()
+        
+        if result:
+            return result[1]  # Return the query
+        else:
+            return "no query"
+    
+    except psycopg2.Error as e:
+        with open(os.path.join(LOG_DIR, 'error_log.txt'), 'a') as error_log:
+            error_log.write("Error querying PostgreSQL by PID:\n")
+            error_log.write(str(e) + '\n')
+            error_log.write("===============================\n\n")
+        return None
+
+def log_pid_queries():
+    log_file_path = os.path.join(LOG_DIR, f'postgres_pid_log_{datetime.datetime.now().date()}.csv')
+    
+    with open(log_file_path, 'a', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        
+        # If the file is empty, write the header
+        if csvfile.tell() == 0:
+            writer.writerow(["Timestamp", "PID", "PostgreSQL Query"])
+        
+        # Log current time
+        timestamp = datetime.datetime.now()
+        
+        # Get top PIDs
+        top_pids = get_top_pids()
+        
+        for pid in top_pids:
+            postgres_query = query_postgres_by_pid(pid)
+            
+            if postgres_query:
+                writer.writerow([timestamp, pid, postgres_query])
+            else:
+                writer.writerow([timestamp, pid, "Error fetching query"])
+
+def main():
+    while True:
+        log_pid_queries()  # Log PID queries every minute
+        time.sleep(60)  # Wait for 60 seconds before running again
+
+if __name__ == "__main__":
+    main()
