@@ -1,0 +1,125 @@
+import os
+import datetime
+import time
+import subprocess
+import csv
+import psycopg2
+import psutil  # For getting CPU utilization
+
+# Configuration for log files and database connection
+LOG_DIR = '/path/to/logs'
+DB_PARAMS = {
+    'host': 'your_postgres_host',
+    'user': 'your_postgres_user',
+    'password': 'your_postgres_password',
+    'dbname': 'your_database'
+}
+
+# Function to get top 10 processes by CPU usage
+def get_top_processes():
+    top_processes = subprocess.Popen(['ps', 'aux'], stdout=subprocess.PIPE)
+    sorted_top_processes = subprocess.Popen(['sort', '-nrk', '3,3'], stdin=top_processes.stdout, stdout=subprocess.PIPE)
+    top_10_processes = subprocess.Popen(['head', '-n', '10'], stdin=sorted_top_processes.stdout, stdout=subprocess.PIPE)
+    top_processes.stdout.close()
+    sorted_top_processes.stdout.close()
+    top_processes_output = top_10_processes.communicate()[0].decode()
+    
+    # Extract process details
+    processes = []
+    for line in top_processes_output.splitlines():
+        columns = line.split(None, 10)  # Split with a limit to avoid splitting command strings
+        if len(columns) > 1:
+            processes.append({
+                'user': columns[0], 
+                'pid': columns[1],
+                'cpu': columns[2],  # CPU percentage
+                'mem': columns[3],  # Memory percentage
+                'vsz': columns[4],  # Virtual memory size
+                'rss': columns[5],  # Resident set size
+                'tty': columns[6], 
+                'stat': columns[7], 
+                'start': columns[8], 
+                'time': columns[9], 
+                'command': columns[10]  # Command/Process name
+            })
+    return processes
+
+# Function to get PostgreSQL query by PID
+def get_postgres_query_by_pid(pid):
+    try:
+        connection = psycopg2.connect(**DB_PARAMS)
+        cursor = connection.cursor()
+        
+        query = """
+        SELECT pid, query 
+        FROM pg_stat_activity 
+        WHERE pid = %s
+        """
+        
+        cursor.execute(query, (pid,))
+        result = cursor.fetchone()
+        
+        cursor.close()
+        connection.close()
+        
+        if result:
+            return result[1]  # Return the PostgreSQL query
+        else:
+            return "no query"
+    
+    except psycopg2.Error as e:
+        # Log errors to a separate file
+        with open(os.path.join(LOG_DIR, 'error_log.txt'), 'a') as error_log:
+            error_log.write("Error querying PostgreSQL by PID:\n")
+            error_log.write(str(e) + '\n')
+            error_log.write("==="*10 + "\n")
+        return None
+
+# Function to log top processes with PostgreSQL queries
+def log_top_processes_with_postgres_queries():
+    # Path to the combined log file
+    combined_log_file_path = os.path.join(LOG_DIR, f'top_processes_with_queries_{datetime.datetime.now().date()}.csv')
+    
+    with open(combined_log_file_path, 'a', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        
+        if csvfile.tell() == 0:  # Write headers if the file is empty
+            writer.writerow(["Timestamp", "CPU Utilization", "USER", "PID", "CPU%", "MEM%", "VSZ", "RSS", "TTY", "STAT", "START", "TIME", "COMMAND", "Database Query"])  # Last column header
+        
+        # Current timestamp and server CPU utilization
+        timestamp = datetime.datetime.now()
+        total_cpu_utilization = psutil.cpu_percent()  # Get server's total CPU utilization
+        
+        # Get top 10 processes by CPU usage
+        top_processes = get_top_processes()
+        
+        for process in top_processes:
+            pid = process['pid']  # Extract PID from the process
+            postgres_query = get_postgres_query_by_pid(pid)  # Get the PostgreSQL query by PID
+            
+            # Log the process details with PostgreSQL query at the end
+            writer.writerow([
+                timestamp, 
+                total_cpu_utilization, 
+                process['user'], 
+                process['pid'], 
+                process['cpu'], 
+                process['mem'], 
+                process['vsz'], 
+                process['rss'], 
+                process['tty'], 
+                process['stat'], 
+                process['start'], 
+                process['time'], 
+                process['command'], 
+                postgres_query if postgres_query else "no query"
+            ])  # Write the data into the CSV file
+
+# Main function to run the logging loop every minute
+def main():
+    while True:
+        log_top_processes_with_postgres_queries()  # Log every minute
+        time.sleep(60)  # Wait for 60 seconds before repeating
+
+if __name__ == "__main__":
+    main()
