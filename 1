@@ -33,3 +33,36 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
+
+
+new
+
+
+import psutil
+import time
+
+def get_postgres_cpu_utilization():
+    postgres_processes = [p for p in psutil.process_iter(attrs=['pid', 'name', 'username']) if p.info['username'] == 'postgres']
+    postgres_cpu_percent = sum(p.cpu_percent(interval=None) for p in postgres_processes)
+    return postgres_cpu_percent
+
+def write_to_log(total_cpu_utilization, postgres_cpu_utilization):
+    with open("cpu_utilization_log.txt", "a") as log_file:
+        log_file.write(f"Total CPU Utilization: {total_cpu_utilization}%\n")
+        log_file.write(f"Postgres CPU Utilization: {postgres_cpu_utilization}%\n")
+        log_file.write("\n")
+
+def main():
+    while True:
+        total_cpu_utilization = psutil.cpu_percent(interval=None, percpu=False)
+        postgres_cpu_utilization = get_postgres_cpu_utilization()
+
+        write_to_log(total_cpu_utilization, postgres_cpu_utilization)
+
+        time.sleep(20)
+
+if __name__ == "__main__":
+    main()
