@@ -1,0 +1,18 @@
+ps aux is a command commonly used in UNIX and Linux systems to display information about running processes. Let's break down what each field represents:
+
+USER: The username of the process owner, indicating which user started the process.
+PID: The Process ID, a unique identifier for each running process.
+%CPU: The percentage of CPU time the process is using relative to the system's total CPU resources.
+%MEM: The percentage of physical memory (RAM) the process is using relative to the system's total available memory.
+VSZ: Virtual Memory Size, indicating the total amount of virtual memory the process is using, typically in kilobytes (KB).
+RSS: Resident Set Size, indicating the amount of physical memory that the process is currently using, typically in kilobytes (KB).
+TTY: Terminal type that the process is associated with. If it is running in the background, this field may be a question mark (?).
+STAT: Process status. Common statuses include:
+R: Running or runnable (actively using CPU resources).
+S: Sleeping (waiting for an event to complete, but can be woken up).
+D: Uninterruptible sleep (waiting on I/O operations, cannot be interrupted).
+T: Stopped (suspended).
+Z: Zombie (terminated but still has an entry in the process table).
+START: The start time or date the process was initiated.
+TIME: The cumulative CPU time consumed by the process.
+COMMAND: The command or the full command line used to start the process, often indicating what the process does or the program it runs.
