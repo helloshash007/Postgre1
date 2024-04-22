@@ -1,0 +1,135 @@
+import os
+import datetime
+import time
+import subprocess
+import csv
+import psycopg2
+import psutil
+
+# Configuration for log files and database connection
+LOG_DIR = '/path/to/logs'  # Change to your desired log directory
+DB_PARAMS = {
+    'host': 'your_postgres_host',  # Postgres host
+    'user': 'your_postgres_user',  # Postgres user
+    'password': 'your_postgres_password',  # Postgres password
+    'dbname': 'your_database'  # Database name
+}
+
+POSTGRES_USERS = ['postgres']  # List of PostgreSQL users. Adjust as needed.
+
+# Function to get top 20 processes by CPU usage
+def get_top_processes():
+    top_processes = subprocess.Popen(['ps', 'aux'], stdout=subprocess.PIPE)
+    sorted_top_processes = subprocess.Popen(['sort', '-nrk', '3'], stdin=top_processes.stdout, stdout=subprocess.PIPE)
+    top_20_processes = subprocess.Popen(['head', '-n', '20'], stdin=sorted_top_processes.stdout, stdout=subprocess.PIPE)
+    top_processes.stdout.close()
+    sorted_top_processes.stdout.close()
+    top_processes_output = top_20_processes.communicate()[0].decode()
+
+    # Extract process details with the necessary columns
+    processes = []
+    for line in top_processes_output.splitlines():
+        columns = line.split(None, 10)  # Split with a limit to avoid splitting command strings
+        if len(columns) > 1:
+            processes.append({
+                'user': columns[0],  # User running the process
+                'pid': columns[1],  # Process ID
+                'cpu': columns[2],  # CPU utilization
+                'mem': columns[3],  # Memory utilization
+                'vsz': columns[4],  # Virtual memory size
+                'rss': columns[5],  # Resident set size
+                'time': columns[9],  # CPU time used by the process
+                'command': columns[10]  # Command/Process name
+            })
+    return processes
+
+# Function to get PostgreSQL query by PID
+def get_postgres_query_by_pid(pid):
+    try:
+        connection = psycopg2.connect(**DB_PARAMS)
+        cursor = connection.cursor()
+
+        query = """
+        SELECT pid, query 
+        FROM pg_stat_activity 
+        WHERE pid = %s
+        """
+
+        cursor.execute(query, (pid,))
+        result = cursor.fetchone()
+
+        cursor.close()
+        connection.close()
+
+        if result:
+            return result[1]  # Return the PostgreSQL query
+        else:
+            return "no query"
+
+    except psycopg2.Error as e:
+        with open(os.path.join(LOG_DIR, 'error_log.txt'), 'a') as error_log:
+            error_log.write("Error querying PostgreSQL by PID:\n")
+            error_log.write(str(e) + '\n')
+            error_log.write("==="*10 + "\n")
+        return None
+
+# Function to log top processes with PostgreSQL queries
+def log_top_processes_with_postgres_queries():
+    # Log file path with date-based naming for daily rotation
+    combined_log_file_path = os.path.join(LOG_DIR, f'top_processes_with_queries_{datetime.datetime.now().date()}.csv')
+    
+    with open(combined_log_file_path, 'a', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        
+        # Write the header if the file is empty
+        if csvfile.tell() == 0:
+            writer.writerow([
+                "Timestamp", "Total CPU Utilization", "Postgres CPU Utilization", "Other CPU Utilization", 
+                "USER", "PID", "CPU%", "MEM%", "VSZ", "RSS", "TIME", "COMMAND", "Database Query"
+            ])  # Adjusted header
+        
+        # Current timestamp and server CPU utilization
+        timestamp = datetime.datetime.now()
+        total_cpu_utilization = psutil.cpu_percent()  # Get total CPU utilization
+        
+        # Get top 20 processes by CPU utilization
+        top_processes = get_top_processes()
+
+        # Calculate CPU utilization for PostgreSQL and other users
+        postgres_cpu_sum = sum(
+            float(p['cpu']) for p in top_processes if p['user'] in POSTGRES_USERS
+        )
+        other_cpu_sum = sum(
+            float(p['cpu']) for p in top_processes if p['user'] not in POSTGRES_USERS
+        )
+
+        # Log each process with PostgreSQL queries and additional details
+        for process in top_processes:
+            pid = process['pid']  # Extract the PID
+            postgres_query = get_postgres_query_by_pid(pid)  # Get the PostgreSQL query by PID
+            
+            # Log the process details with PostgreSQL query at the end of the row
+            writer.writerow([
+                timestamp, 
+                total_cpu_utilization, 
+                postgres_cpu_sum, 
+                other_cpu_sum, 
+                process['user'], 
+                process['pid'], 
+                process['cpu'], 
+                process['mem'], 
+                process['vsz'], 
+                process['rss'], 
+                process['time'], 
+                process['command'], 
+                postgres_query if postgres_query else "no query"
+            ])
+
+# Main function to run the monitoring loop every minute
+def main():
+    while True:
+        log_top_processes_with_postgres_queries()  # Log every minute
+        time.sleep(60)  # Wait for 60 seconds before repeating
+
+if __name__ == "__main__":
+    main()
