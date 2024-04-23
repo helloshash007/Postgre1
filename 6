@@ -1,0 +1,12 @@
+#!/bin/bash
+# This script prints per-core CPU usage by user
+
+# Get the number of cores
+num_cores=$(nproc)
+
+# Output the CPU usage per core by user
+for ((i=0; i<num_cores; i++)); do
+  # Filter by specific CPU core and sort by CPU usage
+  echo "CPU $i:"
+  ps -e -o psr,pcpu,user,comm --sort=-pcpu | awk -v core=$i '$1 == core {print "  User: " $3 ", CPU: " $2 "%, Command: " $4}'
+done
