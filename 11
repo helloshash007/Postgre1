@@ -1,0 +1,24 @@
+import subprocess
+
+# Run the 'top' command with the desired options and get the output
+top_command = ["top", "-b", "-n", "1", "-u", "user"]  # Adjust the 'user' as required
+top_output = subprocess.check_output(top_command, universal_newlines=True)
+
+# Process the output to calculate the sum of CPU usage
+cpu_usage = 0
+for line in top_output.split('\n')[7:]:  # Skip the first 7 lines (header info)
+    if line.strip():  # Ensure it's not an empty line
+        columns = line.split()
+        try:
+            cpu_usage += float(columns[8])  # 9th column contains CPU usage
+        except (IndexError, ValueError):
+            pass  # Ignore lines that don't have expected data
+
+# Calculate the total CPU capacity for a 20-core system
+total_cores = 20
+total_capacity = 100 * total_cores  # 100% per core, times 20 cores
+
+# Calculate CPU utilization as a percentage
+cpu_percentage = (cpu_usage / total_capacity) * 100
+
+print(f"CPU usage as a percentage of total system resources: {cpu_percentage:.2f}%")
