@@ -1,0 +1,98 @@
+import psutil
+import time
+import csv
+import psycopg2
+from collections import defaultdict
+import datetime
+
+# Define the CSV file for logging
+csv_file = "cpu_usage_log_with_pg_query.csv"
+
+# Database connection parameters (modify as needed)
+db_params = {
+    "dbname": "your_db_name",
+    "user": "your_db_user",
+    "password": "your_db_password",
+    "host": "your_db_host",
+    "port": "your_db_port",
+}
+
+# Number of seconds to wait between iterations
+interval = 20
+
+# Function to connect to PostgreSQL and get query by PID
+def get_pg_query(pid, db_params):
+    try:
+        # Connect to PostgreSQL
+        conn = psycopg2.connect(**db_params)
+
+        # Get the query associated with the given PID
+        with conn.cursor() as cur:
+            cur.execute("SELECT query FROM pg_stat_activity WHERE pid = %s", (pid,))
+            result = cur.fetchone()
+
+        # Close the connection
+        conn.close()
+
+        if result:
+            return result[0]
+        else:
+            return "No query"
+
+    except Exception as e:
+        return str(e)
+
+# Function to log CPU usage by core to a CSV file
+def log_cpu_usage(csv_file, db_params):
+    # Dictionary to store the top CPU-using process per core
+    core_usage = defaultdict(list)
+
+    # Get all running processes
+    processes = psutil.process_iter(attrs=['pid', 'name', 'cpu_percent', 'cpu_affinity', 'username'])
+
+    # Check each process and assign it to the appropriate CPU core(s)
+    for proc in processes:
+        try:
+            # Get the core(s) the process is using
+            cores = proc.info['cpu_affinity']
+
+            # CPU percentage used by this process
+            cpu_percent = proc.info['cpu_percent']
+
+            # User running the process
+            user = proc.info['username']
+
+            # PID of the process
+            pid = proc.info['pid']
+
+            # For each core this process is using, add its information to the dictionary
+            for core in cores:
+                query_text = get_pg_query(pid, db_params)
+                core_usage[core].append((pid, user, cpu_percent, proc.info['name'], query_text))
+
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            pass
+
+    # Log the CPU usage per core by user to a CSV file
+    with open(csv_file, "a", newline='') as f:
+        csv_writer = csv.writer(f)
+
+        # Add a timestamp for each entry
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        # Write headers only if the file is empty
+        if f.tell() == 0:
+            csv_writer.writerow(["Timestamp", "CPU Core", "PID", "User", "CPU Usage (%)", "Process Name", "PG Query"])
+
+        # Write the data for each core
+        for core, usage in core_usage.items():
+            # Sort by CPU percentage to get the most CPU-consuming process on each core
+            usage_sorted = sorted(usage, key=lambda x: x[1], reverse=True)
+
+            for pid, user, cpu_percent, process_name, pg_query in usage_sorted[:3]:  # Display top 3 for each core
+                csv_writer.writerow([timestamp, core, pid, user, cpu_percent, process_name, pg_query])
+
+# Loop to log CPU usage every 20 seconds
+while True:
+    log_cpu_usage(csv_file, db_params)
+    time.sleep(interval)
