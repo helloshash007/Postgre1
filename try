@@ -1,0 +1,29 @@
+Python code to run query ' select slot_name, active, restart_lsn, confirmed_flush_lsn, pg_size_pretty(pg_wal_lsn_diff(ph_current_wal_lsn(), confirmed_flush_lsn)) AS target_lag from pg_replication_slots where slot_type= 'logical'  and through warning when ever result target_lag is not 0 bytes and paste result with corresponding row   and run copy.py  we need to run every 2 hour  
+
+We dont want to cron and also it should start automatically if stopped due certain issues 
+
+We need to write logs continuously 
+
+We also need to if select * from pg_replication_slots active is t if it's f then throught alert with slot name and also compare the confirmed_flush_lsn by running the query twice and if it's not changing the. Through alert 
+
+We need to run copy script only if lag is not getting zero in an 2 hour and also through error and we have to run copy script only twice a day max then through error replication is not working fine 
+
+And also log that confirmed flush is changing if it is changing when we compare it 
+
+We need to have gap of 5 hours in executing copy script as well
+
+Can we print is all slots have zero lag as well
+
+
+Also run the copy script daily at 10 am server time 
+
+Need to warning for any lag in log 
+
+Can you just give me change info to warning 
+
+If flush lsn is not changing then also trigger alert rather then infor
+
+If all slots are active the. It should mention all slots are active other wise it should through error if it's f
+
+
+I need copy.py execution time to be printed in log
