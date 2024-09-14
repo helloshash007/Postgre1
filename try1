@@ -1,0 +1,160 @@
+import os
+import sys
+import time
+import logging
+import psycopg2
+import subprocess
+from datetime import datetime, timedelta
+
+# Set up logging
+logging.basicConfig(
+    filename='/path/to/your/logfile.log',  # Update the path to your logfile
+    level=logging.INFO,
+    format='%(asctime)s %(levelname)s: %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+
+previous_flush_lsn = {}
+lag_persistence = {}
+copy_script_run_count = 0
+copy_script_last_run = None
+daily_script_ran = False  # Track if the script has run at 10 AM today
+
+def check_replication_slots():
+    global copy_script_run_count
+    global copy_script_last_run
+    global daily_script_ran
+
+    try:
+        # Connect to your PostgreSQL database
+        conn = psycopg2.connect(
+            dbname="your_dbname",
+            user="your_user",
+            password="your_password",
+            host="your_host",
+            port="your_port"
+        )
+        logging.info("Connected to the database")
+
+        # Create a cursor object
+        cur = conn.cursor()
+
+        # Define the query
+        query = """
+        SELECT slot_name, active, restart_lsn, confirmed_flush_lsn,
+        pg_size_pretty(pg_wal_lsn_diff(pg_current_wal_lsn(), confirmed_flush_lsn)) AS target_lag
+        FROM pg_replication_slots
+        WHERE slot_type = 'logical'
+        """
+
+        # Execute the query
+        cur.execute(query)
+
+        # Fetch all rows from the executed query
+        rows = cur.fetchall()
+        logging.info(f"Executed query, fetched {len(rows)} rows")
+
+        all_slots_active = True  # Assume all slots are active initially
+        all_zero_lag = True  # Assume all slots have zero lag initially
+
+        for row in rows:
+            slot_name, active, restart_lsn, confirmed_flush_lsn, target_lag = row
+
+            logging.info(f"Processing slot: {slot_name}, active: {active}, target_lag: {target_lag}")
+
+            # Check if active is false (f)
+            if not active:
+                logging.error(f"Alert: Slot {slot_name} is inactive")
+                all_slots_active = False
+
+            # Check if confirmed_flush_lsn is changing
+            if slot_name in previous_flush_lsn:
+                if previous_flush_lsn[slot_name] == confirmed_flush_lsn:
+                    logging.error(f"Alert: Slot {slot_name} confirmed_flush_lsn is not changing")
+                else:
+                    logging.info(f"Slot {slot_name} confirmed_flush_lsn has changed from {previous_flush_lsn[slot_name]} to {confirmed_flush_lsn}")
+            else:
+                logging.info(f"Slot {slot_name} confirmed_flush_lsn is {confirmed_flush_lsn}")
+
+            # Store the current confirmed_flush_lsn for the next comparison
+            previous_flush_lsn[slot_name] = confirmed_flush_lsn
+
+            # Check if target_lag is not '0 bytes'
+            if target_lag != '0 bytes':
+                logging.warning(f"Warning: Non-zero lag detected for slot: {slot_name} with lag: {target_lag}")
+                all_zero_lag = False  # At least one slot has non-zero lag
+                if slot_name not in lag_persistence:
+                    lag_persistence[slot_name] = datetime.now()
+                    logging.info(f"Started tracking lag for slot: {slot_name} at {lag_persistence[slot_name]}")
+                else:
+                    # Check if the lag has persisted for 2 hours
+                    if datetime.now() - lag_persistence[slot_name] >= timedelta(hours=2):
+                        logging.info(f"Lag for slot: {slot_name} has persisted for more than 2 hours")
+                        if copy_script_run_count < 2:
+                            # Check if 5 hours have passed since the last run
+                            if copy_script_last_run is None or datetime.now() - copy_script_last_run >= timedelta(hours=5):
+                                logging.info(f"Executing copy.py script")
+                                start_time = datetime.now()
+                                subprocess.run(["python3", "copy.py"])
+                                end_time = datetime.now()
+                                execution_time = end_time - start_time
+                                logging.info(f"Executed copy.py script. Start time: {start_time}, End time: {end_time}, Execution time: {execution_time}")
+                                copy_script_run_count += 1
+                                copy_script_last_run = datetime.now()
+                            else:
+                                logging.info(f"Waiting for 5 hours gap to complete before running copy.py again. Last run was at {copy_script_last_run}")
+                        else:
+                            logging.error("Replication is not working fine. Copy script was required more than twice today.")
+            else:
+                # If the lag is zero, reset the persistence timer for that slot
+                if slot_name in lag_persistence:
+                    logging.info(f"Lag for slot: {slot_name} is now zero, removing from tracking.")
+                    del lag_persistence[slot_name]
+
+        # Log that all slots are active
+        if all_slots_active:
+            logging.info("All replication slots are active.")
+        else:
+            logging.error("One or more replication slots are inactive.")
+
+        # Log that all slots have zero lag if the flag is still True
+        if all_zero_lag:
+            logging.info("All replication slots have zero lag.")
+
+        # Daily check to run copy.py at 10 AM
+        current_time = datetime.now()
+        if current_time.hour == 10 and not daily_script_ran:
+            logging.info(f"Executing copy.py script at 10 AM")
+            start_time = datetime.now()
+            subprocess.run(["python3", "copy.py"])
+            end_time = datetime.now()
+            execution_time = end_time - start_time
+            logging.info(f"Executed copy.py script at 10 AM. Start time: {start_time}, End time: {end_time}, Execution time: {execution_time}")
+            daily_script_ran = True
+            copy_script_run_count += 1
+            copy_script_last_run = current_time
+        elif current_time.hour != 10:
+            daily_script_ran = False  # Reset flag after 10 AM
+
+        # Reset the run count at midnight
+        if copy_script_last_run and current_time.date() != copy_script_last_run.date():
+            copy_script_run_count = 0
+
+        # Close the cursor and connection
+        cur.close()
+        conn.close()
+        logging.info("Closed the database connection")
+
+    except Exception as e:
+        logging.error(f"An error occurred: {e}")
+
+if __name__ == "__main__":
+    while True:
+        try:
+            check_replication_slots()
+            # Sleep for 2 hours (7200 seconds)
+            time.sleep(7200)
+        except Exception as e:
+            logging.error(f"Exception in main loop: {e}")
+            time.sleep(10)  # Delay before restart
+            os.execv(sys.executable, ['python'] + sys.argv)
