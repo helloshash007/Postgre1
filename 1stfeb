@@ -1,0 +1,1 @@
+find /path/to/directory -type f -name "*.gz" -exec gunzip {} +
