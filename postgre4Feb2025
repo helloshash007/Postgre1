@@ -1,0 +1,114 @@
+Here’s a structured Root Cause Analysis (RCA) Document for your PostgreSQL database issue.
+
+
+---
+
+Root Cause Analysis (RCA) Document
+
+Incident Title:
+
+PostgreSQL Database Replication and I/O Freeze Due to WAL Mount Point Removal
+
+Date of Incident:
+
+12-Jan-2025
+
+Affected System:
+
+PostgreSQL Database with VCS (Veritas Cluster Server) Filesystem
+
+Impact:
+
+Unable to create logical replication
+
+PostgreSQL scripts were hanging during replication setup
+
+Tables used for replication were not refreshing
+
+Attempts to drop tables, acquire exclusive locks, and drop schema failed
+
+Logical backup could not be taken initially
+
+I/O operations were frequently hanging
+
+Physical backup and restore did not resolve the issue
+
+Logical dump worked, allowing a fresh database setup and replication recreation
+
+
+
+---
+
+Incident Timeline
+
+
+---
+
+Root Cause
+
+Primary Cause:
+The issue was caused due to the removal of the Write-Ahead Log (WAL) mount point from the VCS filesystem while the database was running.
+
+Impact of WAL Mount Point Removal:
+
+PostgreSQL relies on WAL for maintaining consistency and replication.
+
+Removing the WAL mount point caused PostgreSQL to become unresponsive, leading to I/O hangs and failure in replication setup.
+
+The database state became inconsistent, preventing operations such as dropping tables or schemas.
+
+Physical backup and restore did not resolve the issue as the underlying WAL corruption persisted.
+
+Logical dump was the only viable recovery method, allowing a fresh setup.
+
+
+
+---
+
+Resolution Steps Taken
+
+1. Identified the issue with replication setup and I/O hangs.
+
+
+2. Attempted to drop problematic tables and schema (failed due to I/O locks).
+
+
+3. Tried taking a logical backup, which initially failed due to system instability.
+
+
+4. Performed physical backup and restore, but the issue persisted.
+
+
+5. Successfully took a logical dump on 12-Jan.
+
+
+6. Dropped the entire database and recreated a fresh instance.
+
+
+7. Restored the logical dump to recover data.
+
+
+8. Reconfigured replication, ensuring WAL mount was correctly set up.
+
+
+
+
+---
+
+Preventive Actions & Recommendations
+
+
+---
+
+Conclusion
+
+The issue was due to the removal of the WAL mount point from the VCS filesystem while the database was running, leading to an inconsistent state and failed replication. Logical dump and fresh database creation were the only viable solutions. Preventive measures have been recommended to avoid similar issues in the future.
+
+Prepared By: [Your Name]
+Date: [Today's Date]
+
+
+---
+
+Would you like any modifications or additional details in this RCA?
+
