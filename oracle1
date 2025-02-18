@@ -1,0 +1,31 @@
+- name: Deploy SQL artifacts to Oracle
+  hosts: oracle_servers
+  become: yes
+  vars:
+    nexus_url: "http://nexus.example.com/repository/sql-artifacts"
+    sql_filename: "schema_update.sql"
+    sql_dest: "/tmp/{{ sql_filename }}"
+    oracle_user: "oracle"
+    oracle_home: "/u01/app/oracle/product/19c/dbhome_1"
+    oracle_db: "ORCL"
+    oracle_user_db: "dbuser"
+    oracle_pass_db: "dbpassword"
+  
+  tasks:
+    - name: Download SQL file from Nexus
+      get_url:
+        url: "{{ nexus_url }}/{{ sql_filename }}"
+        dest: "{{ sql_dest }}"
+        mode: '0644'
+
+    - name: Copy SQL file to Oracle server
+      copy:
+        src: "{{ sql_dest }}"
+        dest: "{{ sql_dest }}"
+        owner: "{{ oracle_user }}"
+        mode: '0644'
+
+    - name: Execute SQL script
+      command: > 
+        {{ oracle_home }}/bin/sqlplus {{ oracle_user_db }}/{{ oracle_pass_db }}@{{ oracle_db }} @{{ sql_dest }}
+      become_user: "{{ oracle_user }}"
