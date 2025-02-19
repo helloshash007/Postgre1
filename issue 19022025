@@ -1,0 +1,72 @@
+If you're seeing an Access Share Lock for a query in PostgreSQL 14 but there are no other queries running, here are some steps to troubleshoot and fix the issue:
+
+1. Check for Blocking Locks
+
+Run the following query to check if there are any blocking locks:
+
+SELECT pid, age(clock_timestamp(), query_start) AS duration, usename, state, wait_event, wait_event_type, query
+FROM pg_stat_activity
+WHERE wait_event IS NOT NULL
+ORDER BY query_start;
+
+Look for any other sessions that might be blocking the current query.
+
+If there is a blocking session, you can terminate it using:
+
+SELECT pg_terminate_backend(<blocking_pid>);
+
+
+2. Check for Long-Running Transactions
+
+If an old transaction is holding a lock, it might be preventing the query from executing. Check for long-running transactions:
+
+SELECT pid, age(now(), xact_start) AS duration, state, query 
+FROM pg_stat_activity 
+WHERE state = 'active' OR state = 'idle in transaction';
+
+If a transaction has been running for a long time, consider committing or rolling it back:
+
+SELECT pg_terminate_backend(<pid>);
+
+
+3. Check for Unused or Orphaned Locks
+
+List all current locks:
+
+SELECT locktype, relation::regclass, mode, granted, pid 
+FROM pg_locks 
+WHERE NOT granted;
+
+If you find an unused lock stuck, restarting PostgreSQL might be necessary.
+
+
+4. Vacuum and Analyze the Table
+
+If the table is experiencing autovacuum issues, you might need to run:
+
+VACUUM ANALYZE <table_name>;
+
+Check if autovacuum is running with:
+
+SELECT * FROM pg_stat_progress_vacuum;
+
+
+5. Restart PostgreSQL (if necessary)
+
+If all else fails and the lock persists without any visible blocking sessions, restarting the PostgreSQL service might be necessary:
+
+systemctl restart postgresql
+
+Or for Docker-based PostgreSQL:
+
+docker restart <postgres_container_name>
+
+Next Steps
+
+If the issue keeps occurring, check triggers, indexes, or foreign keys that might be unexpectedly locking the table.
+
+Monitor the database locks using pg_stat_activity to catch blocking sessions earlier.
+
+
+Let me know if you need help with any specific query results!
+
