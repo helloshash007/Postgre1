@@ -1,0 +1,1 @@
+sqlplus myuser/mypassword@"(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=192.168.1.100)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=orclpdb1)))" @/tmp/schema_update.sql
