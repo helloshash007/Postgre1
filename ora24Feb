@@ -1,0 +1,42 @@
+- name: Deploy SQL artifacts to Oracle
+  hosts: oracle_servers
+  become: yes
+  vars:
+    nexus_url: "http://nexus.example.com/repository/sql-artifacts"
+    master_sql_tar: "master_sql_bundle.tar"
+    sql_remote_dir: "/tmp/sql_files"
+    oracle_user: "oracle"
+    oracle_home: "/u01/app/oracle/product/19c/dbhome_1"
+    oracle_db_user: "dbuser"
+    oracle_db_pass: "dbpassword"
+    oracle_host: "your_oracle_host"
+    oracle_port: "1521"
+    oracle_service: "your_service"
+
+  tasks:
+    - name: Create directory for SQL files
+      file:
+        path: "{{ sql_remote_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Download master SQL tar file from Nexus
+      get_url:
+        url: "{{ nexus_url }}/{{ master_sql_tar }}"
+        dest: "{{ sql_remote_dir }}/{{ master_sql_tar }}"
+        mode: '0644'
+
+    - name: Extract SQL files from tar archive
+      command: "tar -xvf {{ sql_remote_dir }}/{{ master_sql_tar }} -C {{ sql_remote_dir }}"
+      args:
+        chdir: "{{ sql_remote_dir }}"
+
+    - name: Read master SQL file for execution order
+      shell: "cat {{ sql_remote_dir }}/master.sql"
+      register: sql_order
+
+    - name: Execute SQL files in the defined order
+      shell: >
+        {{ oracle_home }}/bin/sqlplus {{ oracle_db_user }}/{{ oracle_db_pass }}@"(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST={{ oracle_host }})(PORT={{ oracle_port }}))(CONNECT_DATA=(SERVICE_NAME={{ oracle_service }})))" @{{ sql_remote_dir }}/{{ item }}
+      loop: "{{ sql_order.stdout_lines }}"
+      become_user: "{{ oracle_user }}"
