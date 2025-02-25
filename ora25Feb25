@@ -1,0 +1,59 @@
+pipeline {
+    agent any
+    environment {
+        NEXUS_URL  = "http://nexus.example.com/repository/sql-artifacts"
+    }
+    stages {
+        stage('Checkout Code') {
+            steps {
+                checkout scm
+            }
+        }
+        stage('Generate Version') {
+            steps {
+                script {
+                    // Generate auto-versioning based on timestamp
+                    env.VERSION = new Date().format("yyyyMMdd-HHmmss")
+                    env.TAR_FILE = "master_sql_bundle-${VERSION}.tar"
+                }
+            }
+        }
+        stage('Create SQL Tar Package') {
+            steps {
+                script {
+                    // Ensure a clean workspace
+                    sh "rm -f ${env.TAR_FILE}"
+                    
+                    // Read master.sql to determine which SQL files to include
+                    def sql_files = readFile('master.sql').split("\n").findAll { it.trim() }
+                    
+                    // Create tar archive with master.sql and all referenced SQL files
+                    def file_list = "master.sql " + sql_files.join(" ")
+                    sh "tar -cvf ${env.TAR_FILE} ${file_list}"
+                    
+                    // Verify contents of tar
+                    sh "tar -tvf ${env.TAR_FILE}"
+                }
+            }
+        }
+        stage('Upload to Nexus') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'nexus', usernameVariable: 'NEXUS_USER', passwordVariable: 'NEXUS_PASS')]) {
+                    script {
+                        sh """
+                            curl -v -u ${NEXUS_USER}:${NEXUS_PASS} --upload-file ${env.TAR_FILE} ${NEXUS_URL}/${env.TAR_FILE}
+                        """
+                    }
+                }
+            }
+        }
+    }
+    post {
+        success {
+            echo "SQL tar package ${env.TAR_FILE} created and uploaded successfully."
+        }
+        failure {
+            echo "SQL tar package creation or upload failed."
+        }
+    }
+}
