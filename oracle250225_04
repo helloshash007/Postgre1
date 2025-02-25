@@ -1,0 +1,89 @@
+---
+- name: Deploy SQL Files to Oracle
+  hosts: oracle_servers
+  become: yes
+  vars:
+    nexus_url: "http://nexus.example.com/repository/sql-artifacts"
+    tar_file: "master_sql_bundle-{{ version }}.tar"
+    download_dir: "/tmp"
+    sql_remote_dir: "/tmp/sql_files"
+    oracle_home: "/u01/app/oracle/product/19c/dbhome_1"
+
+  tasks:
+    - name: Download SQL tar package from Nexus
+      get_url:
+        url: "{{ nexus_url }}/{{ tar_file }}"
+        dest: "{{ download_dir }}/{{ tar_file }}"
+        username: "{{ nexus_user }}"
+        password: "{{ nexus_pass }}"
+        force_basic_auth: yes
+
+    - name: Extract SQL tar package
+      ansible.builtin.unarchive:
+        src: "{{ download_dir }}/{{ tar_file }}"
+        dest: "{{ sql_remote_dir }}"
+        remote_src: yes
+
+    - name: Read master.sql for execution order
+      shell: "cat {{ sql_remote_dir }}/master.sql"
+      register: sql_order
+
+    - name: Execute SQL files in order
+      shell: >
+        {{ oracle_home }}/bin/sqlplus {{ oracle_user }}/{{ oracle_pass }}@"(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST={{ oracle_host }})(PORT={{ oracle_port }}))(CONNECT_DATA=(SERVICE_NAME={{ oracle_service }})))"
+        @{{ sql_remote_dir }}/{{ item }}
+      loop: "{{ sql_order.stdout_lines }}"
+
+
+
+
+
+----
+
+version: "{{ tower_job_id }}"
+nexus_user: "your-nexus-username"
+nexus_pass: "your-nexus-password"
+oracle_user: "your-oracle-username"
+oracle_pass: "your-oracle-password"
+oracle_host: "your_oracle_host"
+oracle_service: "your_service"
+oracle_port: 1521
+
+--++
+
+pipeline {
+    agent any
+    environment {
+        TOWER_JOB_TEMPLATE_ID = "Deploy-SQL-Ansible-Tower"
+    }
+    stages {
+        stage('Trigger Ansible Tower') {
+            steps {
+                withCredentials([
+                    usernamePassword(credentialsId: 'nexus', usernameVariable: 'NEXUS_USER', passwordVariable: 'NEXUS_PASS'),
+                    usernamePassword(credentialsId: 'oracle', usernameVariable: 'ORACLE_USER', passwordVariable: 'ORACLE_PASS')
+                ]) {
+                    script {
+                        sh """
+                            curl -k -X POST "https://ansible-tower.example.com/api/v2/job_templates/${TOWER_JOB_TEMPLATE_ID}/launch/" \
+                            -H "Content-Type: application/json" \
+                            -H "Authorization: Bearer ${TOWER_API_TOKEN}" \
+                            --data '{
+                                "extra_vars": {
+                                    "version": "${BUILD_NUMBER}",
+                                    "nexus_user": "${NEXUS_USER}",
+                                    "nexus_pass": "${NEXUS_PASS}",
+                                    "oracle_user": "${ORACLE_USER}",
+                                    "oracle_pass": "${ORACLE_PASS}",
+                                    "oracle_host": "your_oracle_host",
+                                    "oracle_service": "your_service",
+                                    "oracle_port": 1521
+                                }
+                            }'
+                        """
+                    }
+                }
+            }
+        }
+    }
+}
