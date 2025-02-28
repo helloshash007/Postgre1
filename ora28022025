@@ -11,3 +11,31 @@
       loop: "{{ sql_files }}"
       register: sql_execution
       failed_when: "'ORA-' in sql_execution.stdout"
+
+
+
+- name: Deploy SQL files in Oracle
+  hosts: oracle_server
+  gather_facts: no
+  tasks:
+
+    - name: Read master.sql file
+      slurp:
+        src: "/path/to/master.sql"
+      register: master_sql_content
+
+    - name: Extract SQL filenames from master.sql
+      set_fact:
+        sql_files: "{{ master_sql_content['content'] | b64decode | regex_findall('([\\w]+\\.sql)') }}"
+
+    - name: Execute SQL files in order
+      shell: |
+        echo "Executing {{ item }}..."
+        sqlplus {{ db_user }}/{{ db_password }}@'(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST={{ db_host }})(PORT={{ db_port }}))(CONNECT_DATA=(SERVICE_NAME={{ db_service }})))' @/path/to/sql/{{ item }}
+      loop: "{{ sql_files }}"
+      register: sql_execution
+      failed_when: "'ORA-' in sql_execution.stdout"
+
+    - name: Show SQL execution results
+      debug:
+        var: sql_execution.results
