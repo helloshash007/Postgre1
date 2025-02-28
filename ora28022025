@@ -1,0 +1,13 @@
+- name: Execute SQL files in order
+      shell: |
+        echo "Executing {{ item }}..."
+        echo "SET SERVEROUTPUT ON;" > temp_wrapper.sql
+        echo "WHENEVER SQLERROR EXIT SQL.SQLCODE;" >> temp_wrapper.sql
+        echo "SPOOL /tmp/{{ item }}.log;" >> temp_wrapper.sql
+        echo "@/path/to/sql/{{ item }}" >> temp_wrapper.sql
+        echo "SPOOL OFF;" >> temp_wrapper.sql
+        echo "EXIT;" >> temp_wrapper.sql
+        sqlplus -S {{ db_user }}/{{ db_password }}@'(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST={{ db_host }})(PORT={{ db_port }}))(CONNECT_DATA=(SERVICE_NAME={{ db_service }})))' @temp_wrapper.sql
+      loop: "{{ sql_files }}"
+      register: sql_execution
+      failed_when: "'ORA-' in sql_execution.stdout"
