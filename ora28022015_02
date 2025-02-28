@@ -1,0 +1,77 @@
+- name: Deploy SQL files from Nexus to Oracle
+  hosts: oracle_server
+  gather_facts: no
+  vars:
+    nexus_repo_url: "http://nexus.example.com/repository/sql-artifacts/"
+    download_path: "/tmp"
+    extract_path: "/tmp/sql_files"
+    tar_file_name: "master_sql_bundle-{{ Version }}.tar"  # Version is passed from Ansible Tower
+
+  tasks:
+    - name: Download the master SQL tar file from Nexus
+      get_url:
+        url: "{{ nexus_repo_url }}{{ tar_file_name }}"
+        dest: "{{ download_path }}/{{ tar_file_name }}"
+        mode: '0644'
+        url_username: "{{ nexus_user }}"
+        url_password: "{{ nexus_pass }}"
+        force_basic_auth: yes
+
+    - name: Extract SQL files
+      unarchive:
+        src: "{{ download_path }}/{{ tar_file_name }}"
+        dest: "{{ extract_path }}"
+        remote_src: yes
+
+    - name: Read master.sql file
+      slurp:
+        src: "{{ extract_path }}/master.sql"
+      register: master_sql_content
+
+    - name: Extract SQL filenames from master.sql
+      set_fact:
+        sql_files: "{{ master_sql_content['content'] | b64decode | regex_findall('([\\w]+\\.sql)') }}"
+
+    - name: Check if SQL files exist
+      stat:
+        path: "{{ extract_path }}/{{ item }}"
+      loop: "{{ sql_files }}"
+      register: sql_files_stat
+
+    - name: Fail if any SQL file is missing
+      fail:
+        msg: "Missing SQL file: {{ item.item }}"
+      when: not item.stat.exists
+      loop: "{{ sql_files_stat.results }}"
+
+    - name: Execute SQL files in order
+      shell: |
+        export ORACLE_HOME={{ oracle_home }}
+        export PATH=$ORACLE_HOME/bin:$PATH
+        echo "Executing {{ item }}..."
+        echo "SET SERVEROUTPUT ON;" > temp_wrapper.sql
+        echo "WHENEVER SQLERROR EXIT SQL.SQLCODE;" >> temp_wrapper.sql
+        echo "SPOOL {{ sqlplus_output_log }}/{{ item }}.log;" >> temp_wrapper.sql
+        echo "@/{{ extract_path }}/{{ item }}" >> temp_wrapper.sql
+        echo "SPOOL OFF;" >> temp_wrapper.sql
+        echo "EXIT;" >> temp_wrapper.sql
+        sqlplus -S {{ oracle_user }}/{{ oracle_pass }}@'(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST={{ oracle_host }})(PORT={{ oracle_port }}))(CONNECT_DATA=(SERVICE_NAME={{ oracle_service }})))' @temp_wrapper.sql
+      loop: "{{ sql_files }}"
+      register: sql_execution
+      failed_when: "'ORA-' in sql_execution.stdout"
+
+    - name: Check SQL execution logs
+      shell: "grep -i 'ORA-' {{ sqlplus_output_log }}/{{ item }}.log || echo 'SUCCESS'"
+      loop: "{{ sql_files }}"
+      register: sql_logs
+      changed_when: false
+
+    - name: Show SQL execution status
+      debug:
+        var: sql_logs.results
+
+    - name: Confirm if execution is successful
+      fail:
+        msg: "SQL execution failed for {{ item.item }}. Check {{ sqlplus_output_log }}/{{ item.item }}.log"
+      when: "'ORA-' in item.stdout"
+      loop: "{{ sql_logs.results }}"
