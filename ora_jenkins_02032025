@@ -1,0 +1,45 @@
+pipeline {
+    agent any
+
+    parameters {
+        string(name: 'Version', defaultValue: '1.0.0', description: 'Version of the SQL bundle')
+        string(name: 'nexus_user', defaultValue: 'admin', description: 'Nexus username')
+        password(name: 'nexus_pass', description: 'Nexus password')
+        string(name: 'oracle_user', defaultValue: 'db_user', description: 'Oracle database user')
+        password(name: 'oracle_pass', description: 'Oracle database password')
+        string(name: 'oracle_host', defaultValue: 'db.example.com', description: 'Oracle database host')
+        string(name: 'oracle_port', defaultValue: '1521', description: 'Oracle database port')
+        string(name: 'oracle_service', defaultValue: 'ORCL', description: 'Oracle service name')
+        string(name: 'oracle_home', defaultValue: '/u01/app/oracle/product/19c/dbhome_1', description: 'Oracle home path')
+        string(name: 'sqlplus_output_log', defaultValue: '/var/log/sqlplus', description: 'Path for SQL logs')
+    }
+
+    stages {
+        stage('Checkout Code') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Run Ansible Playbook') {
+            steps {
+                script {
+                    def ansibleCmd = """
+                        ansible-playbook -i inventory.ini deploy_sql_from_nexus.yml \\
+                        --extra-vars 'Version=${params.Version} \\
+                        nexus_user=${params.nexus_user} \\
+                        nexus_pass=${params.nexus_pass} \\
+                        oracle_user=${params.oracle_user} \\
+                        oracle_pass=${params.oracle_pass} \\
+                        oracle_host=${params.oracle_host} \\
+                        oracle_port=${params.oracle_port} \\
+                        oracle_service=${params.oracle_service} \\
+                        oracle_home=${params.oracle_home} \\
+                        sqlplus_output_log=${params.sqlplus_output_log}'
+                    """
+                    sh ansibleCmd
+                }
+            }
+        }
+    }
+}
