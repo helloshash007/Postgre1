@@ -1,0 +1,48 @@
+pipeline {
+    agent any
+
+    parameters {
+        string(name: 'Version', defaultValue: '1.0.0', description: 'SQL bundle version')
+        choice(name: 'Env', choices: ['DEV', 'QA', 'PROD'], description: 'Deployment Environment')
+        string(name: 'oracle_host', defaultValue: 'db.example.com', description: 'Oracle database host')
+        string(name: 'oracle_service', defaultValue: 'ORCL', description: 'Oracle service name')
+        string(name: 'oracle_port', defaultValue: '1521', description: 'Oracle database port')
+    }
+
+    stages {
+        stage('Trigger Ansible Tower Job') {
+            steps {
+                script {
+                    withCredentials([
+                        usernamePassword(credentialsId: 'nexus-credentials', usernameVariable: 'NEXUS_USER', passwordVariable: 'NEXUS_PASS'),
+                        usernamePassword(credentialsId: 'oracle-credentials', usernameVariable: 'ORACLE_USER', passwordVariable: 'ORACLE_PASS'),
+                        string(credentialsId: 'oracle-home', variable: 'ORACLE_HOME'),
+                        string(credentialsId: 'sqlplus-output-log', variable: 'SQLPLUS_OUTPUT_LOG'),
+                        usernamePassword(credentialsId: 'ansible-credentials', usernameVariable: 'ANSIBLE_USER', passwordVariable: 'ANSIBLE_PASS')
+                    ]) {
+                        sh """
+                            tower-cli job launch \\
+                            --tower https://ansible-tower.example.com \\
+                            --user ${ANSIBLE_USER} \\
+                            --password ${ANSIBLE_PASS} \\
+                            --job-template "Deploy_SQL_Bundle" \\
+                            --extra-vars '{
+                                "Version": "${params.Version}",
+                                "Env": "${params.Env}",
+                                "nexus_user": "${NEXUS_USER}",
+                                "nexus_pass": "${NEXUS_PASS}",
+                                "oracle_user": "${ORACLE_USER}",
+                                "oracle_pass": "${ORACLE_PASS}",
+                                "oracle_host": "${params.oracle_host}",
+                                "oracle_service": "${params.oracle_service}",
+                                "oracle_port": "${params.oracle_port}",
+                                "oracle_home": "${ORACLE_HOME}",
+                                "sqlplus_output_log": "${SQLPLUS_OUTPUT_LOG}"
+                            }'
+                        """
+                    }
+                }
+            }
+        }
+    }
+}
