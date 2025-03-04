@@ -1,3 +1,8 @@
+
+
+
+
+
 pipeline {
     agent any
 
@@ -46,3 +51,92 @@ pipeline {
         }
     }
 }
+
+
+
+
+Got it! Before extracting the SQL files, we will clear the /tmp/sql_files and /tmp/sql_log directories in the Ansible playbook.
+
+
+---
+
+Updated Ansible Playbook (playbook.yml)
+
+---
+- name: Deploy SQL Files to Oracle
+  hosts: oracle_servers
+  become: yes
+  vars:
+    nexus_url: "http://nexus.example.com/repository/sql-artifacts"
+    tar_file: "master_sql_bundle-{{ version }}.tar"
+    download_dir: "/tmp"
+    sql_remote_dir: "/tmp/sql_files"
+    sql_log_dir: "/tmp/sql_log"
+    oracle_home: "/u01/app/oracle/product/19c/dbhome_1"
+
+  tasks:
+    - name: Ensure SQL directories exist
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ oracle_user }}"
+        group: "{{ oracle_user }}"
+        mode: '0755'
+      loop:
+        - "{{ sql_remote_dir }}"
+        - "{{ sql_log_dir }}"
+
+    - name: Clear SQL directories before extraction
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ sql_remote_dir }}"
+        - "{{ sql_log_dir }}"
+
+    - name: Recreate SQL directories after cleanup
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ oracle_user }}"
+        group: "{{ oracle_user }}"
+        mode: '0755'
+      loop:
+        - "{{ sql_remote_dir }}"
+        - "{{ sql_log_dir }}"
+
+    - name: Download SQL tar package from Nexus
+      get_url:
+        url: "{{ nexus_url }}/{{ tar_file }}"
+        dest: "{{ download_dir }}/{{ tar_file }}"
+        username: "{{ nexus_user }}"
+        password: "{{ nexus_pass }}"
+        force_basic_auth: yes
+
+    - name: Extract SQL tar package
+      ansible.builtin.unarchive:
+        src: "{{ download_dir }}/{{ tar_file }}"
+        dest: "{{ sql_remote_dir }}"
+        remote_src: yes
+
+    - name: Read master.sql for execution order
+      shell: "cat {{ sql_remote_dir }}/master.sql"
+      register: sql_order
+
+    - name: Execute SQL files in order
+      shell: >
+        {{ oracle_home }}/bin/sqlplus {{ oracle_user }}/{{ oracle_pass }}@"(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST={{ oracle_host }})(PORT={{ oracle_port }}))(CONNECT_DATA=(SERVICE_NAME={{ oracle_service }})))"
+        @{{ sql_remote_dir }}/{{ item }} >> {{ sql_log_dir }}/deployment.log 2>&1
+      loop: "{{ sql_order.stdout_lines }}"
+
+
+---
+
+Changes Made
+
+✅ Deletes /tmp/sql_files and /tmp/sql_log before extraction.
+✅ Recreates both directories after cleanup.
+✅ SQL execution logs are saved in /tmp/sql_log/deployment.log.
+
+Now, the playbook ensures a clean deployment environment each time! 🚀 Let me know if you need further refinements.
+
