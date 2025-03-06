@@ -1,0 +1,70 @@
+Here's the updated PostgreSQL Engineer (Expert Level) job description with Google Cloud knowledge included:
+
+
+---
+
+Job Title: PostgreSQL Engineer (Expert Level)
+
+Location: [Specify Location or Remote]
+
+Experience: 10+ years
+
+Employment Type: [Full-time/Contract]
+
+Job Description:
+
+We are seeking an experienced PostgreSQL Engineer with expert-level knowledge in logical and physical replication to join our team. The ideal candidate should have a strong background in database administration, replication strategies, and automation using DevOps tools like Ansible and Jenkins. Experience with Google Cloud and other cloud platforms is a plus.
+
+Key Responsibilities:
+
+Design, implement, and manage PostgreSQL replication (logical and physical) for high availability and disaster recovery.
+
+Optimize database performance, tuning, and query optimization.
+
+Automate database deployment and management using Ansible, Jenkins, and scripting (Bash/Python).
+
+Develop and maintain backup, restore, and failover strategies.
+
+Work closely with development and infrastructure teams to ensure database scalability and reliability.
+
+Monitor database health, security, and troubleshoot replication issues.
+
+Implement best practices for high availability (HA) and disaster recovery (DR) solutions.
+
+Work with Google Cloud (Cloud SQL for PostgreSQL, GKE, GCP networking, IAM, monitoring) and other cloud platforms.
+
+
+Required Skills:
+
+10+ years of hands-on experience with PostgreSQL administration and replication (logical & physical).
+
+Strong expertise in WAL archiving, streaming replication, and logical decoding.
+
+Proficiency in database performance tuning, indexing strategies, and query optimization.
+
+Experience in automating database tasks using Ansible, Jenkins, and scripting.
+
+Solid knowledge of database security, auditing, and access control mechanisms.
+
+Familiarity with Google Cloud (Cloud SQL, IAM, VPC, GKE) and other cloud platforms (AWS, Azure) is a plus.
+
+Strong troubleshooting and problem-solving skills.
+
+Experience with monitoring tools like Prometheus, Grafana, or ELK Stack is a plus.
+
+
+Preferred Qualifications:
+
+PostgreSQL certification is a plus.
+
+Experience with Kubernetes, Docker, and CI/CD pipelines.
+
+Knowledge of other databases like MySQL, Oracle, or NoSQL databases is a bonus.
+
+
+How to Apply:
+
+[Include application process or contact details]
+
+Would you like any further refinements?
+
