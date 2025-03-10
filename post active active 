@@ -193,3 +193,178 @@ If you need a reliable, scalable, and officially supported active-active Postgre
 Would you like a step-by-step guide for setting up PGD in your environment?
 
 
+
+EDB Postgres Distributed (PGD) Architecture
+
+EDB PGD is a multi-master replication solution designed for high availability, scalability, and disaster recovery in PostgreSQL. It allows multiple nodes to function as active database instances, enabling read and write operations on all nodes while maintaining data consistency.
+
+
+---
+
+1. PGD Core Components
+
+A. PGD Nodes (Data Nodes)
+
+Each database instance in a PGD cluster is called a node.
+
+Nodes can be distributed across different regions or data centers.
+
+All nodes in the cluster support read and write operations.
+
+
+B. Node Groups
+
+Nodes are organized into groups for better replication control.
+
+A group can represent a specific data center or geographic region.
+
+Groups ensure data consistency within a specific scope.
+
+
+C. Global Transaction Ordering
+
+PGD uses a global transaction ID system to maintain consistency across all nodes.
+
+This ensures transactions are applied in the same order across all nodes.
+
+
+D. Conflict Resolution Mechanism
+
+PGD automatically detects conflicts when the same row is updated in different nodes.
+
+Supports different conflict resolution strategies, such as:
+
+Last-Update-Wins
+
+Transaction Timestamp-Based Resolution
+
+Custom Conflict Handlers (user-defined rules)
+
+
+
+E. Asynchronous Logical Replication
+
+PGD uses logical replication to transfer data between nodes.
+
+Unlike streaming replication (physical replication), logical replication allows:
+
+Replicating specific tables.
+
+Filtering or transforming data during replication.
+
+
+
+F. High Availability & Failover
+
+PGD can automatically detect node failures.
+
+Uses a combination of automatic failover and self-healing mechanisms to recover lost nodes.
+
+Can be integrated with Enterprise Failover Manager (EFM) for managing node failures.
+
+
+
+---
+
+2. PGD Cluster Architecture
+
+A typical PGD deployment consists of multiple database nodes working together in an active-active or active-passive setup.
+
+Active-Active Architecture
+
+All nodes are writable and share the workload.
+
+Ideal for geo-distributed applications where users need low-latency access.
+
+Data consistency is maintained using global transaction ordering and conflict resolution.
+
+
+Example Deployment
+
+Users in the US-East region write to Node 1, while users in Europe write to Node 3.
+
+PGD ensures data consistency across all nodes.
+
+
+Active-Passive Architecture
+
+One primary node handles writes, while replica nodes serve read queries.
+
+Failover is automatic if the primary node fails.
+
+Ideal for high-availability setups where read scaling is needed.
+
+
+Example Deployment
+
+Writes go to Node 1.
+
+Reads can be load-balanced across Nodes 2 and 3.
+
+
+
+---
+
+3. PGD Workflow
+
+1. Transaction Execution
+
+A user writes data to any PGD node.
+
+The transaction gets a global transaction ID.
+
+
+
+2. Replication
+
+Changes are asynchronously replicated to other nodes.
+
+Conflict resolution is applied if needed.
+
+
+
+3. Read and Write Distribution
+
+Reads can be routed to any node.
+
+Writes can be executed on any active node in an active-active setup.
+
+
+
+4. Node Failure Handling
+
+If a node goes down, PGD reroutes queries to another node.
+
+The failed node automatically rejoins the cluster after recovery.
+
+
+
+
+
+---
+
+4. PGD Benefits
+
+✅ True Active-Active Replication – All nodes are writable.
+✅ Automatic Failover & High Availability – Self-healing cluster.
+✅ Scalability – Distributed database architecture.
+✅ Conflict Resolution – Multiple resolution strategies.
+✅ Disaster Recovery – Geo-redundancy and self-healing.
+
+
+---
+
+5. When to Use PGD?
+
+Global applications needing multi-region writes.
+
+High availability setups with zero downtime.
+
+Distributed workloads where users in different locations need local access.
+
+Financial or IoT systems requiring real-time replication.
+
+
+Would you like a step-by-step guide on installing and configuring PGD in your setup?
+
+
