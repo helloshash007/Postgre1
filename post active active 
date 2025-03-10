@@ -1,0 +1,195 @@
+PostgreSQL does not support an active-active setup natively because it uses a primary-replica model for replication. However, you can achieve an active-active-like setup using third-party solutions. Here are a few options:
+
+1. BDR (Bi-Directional Replication)
+
+Description: BDR (developed by 2ndQuadrant, now part of EDB) is one of the best solutions for multi-master replication in PostgreSQL.
+
+Features:
+
+True active-active replication.
+
+Conflict resolution mechanisms.
+
+Low replication lag.
+
+
+Use Case: Distributed applications requiring multiple writable nodes.
+
+
+2. pglogical (Logical Replication)
+
+Description: Logical replication can be used for partial or selective replication and can be configured to simulate active-active replication.
+
+Features:
+
+Fine-grained replication (table-level).
+
+Custom conflict resolution.
+
+
+Use Case: Multi-region setups where conflict resolution is handled at the application level.
+
+
+3. Citus (Sharding and Distributed Transactions)
+
+Description: Citus (by Microsoft) is an extension for PostgreSQL that enables distributed SQL for scaling reads and writes.
+
+Features:
+
+Sharding and parallel queries.
+
+Can distribute writes to multiple nodes.
+
+
+Use Case: High-throughput transactional systems.
+
+
+4. Bucardo (Trigger-Based Replication)
+
+Description: Bucardo is a replication system that uses triggers for data replication.
+
+Features:
+
+Asynchronous replication.
+
+Custom conflict resolution.
+
+
+Use Case: Legacy systems needing minimal database modifications.
+
+
+5. Patroni + Etcd + HAProxy (Failover, Not True Active-Active)
+
+Description: Patroni manages PostgreSQL clusters and provides automated failover.
+
+Features:
+
+Auto failover with etcd or Consul.
+
+Read scaling with HAProxy or PgBouncer.
+
+
+Use Case: High availability with fast failover.
+
+
+
+---
+
+Which One to Choose?
+
+For true active-active: Use BDR (best option) or pglogical.
+
+For distributed workloads: Use Citus.
+
+For legacy replication needs: Use Bucardo.
+
+For high availability (but not active-active): Use Patroni + HAProxy.
+
+
+Do you have a specific requirement, such as handling conflict resolution, high availability, or performance?
+
+
+
+Yes, EDB Postgres Distributed (PGD) is one of the best solutions for achieving active-active replication in PostgreSQL. It is designed specifically for high availability, disaster recovery, and geographically distributed workloads.
+
+Why Use EDB PGD for Active-Active Setup?
+
+1. True Multi-Master Replication:
+
+All nodes can handle both read and write operations.
+
+Conflict resolution mechanisms ensure consistency.
+
+
+
+2. High Availability & Fault Tolerance:
+
+Automatic failover and self-healing clusters.
+
+Can sustain node failures without losing availability.
+
+
+
+3. Global Scale and Low Latency:
+
+Optimized for geographically distributed deployments.
+
+Reduces latency by directing queries to the nearest node.
+
+
+
+4. Conflict Resolution:
+
+Supports automatic conflict resolution strategies.
+
+You can configure custom conflict resolution logic.
+
+
+
+5. Seamless Application Integration:
+
+Applications do not need to be modified significantly to use PGD.
+
+Works with existing PostgreSQL tools and extensions.
+
+
+
+
+
+---
+
+How to Set Up EDB PGD for Active-Active
+
+1. Install EDB PGD
+
+Use EDB's package repositories to install PGD.
+
+Ensure all nodes are running compatible PostgreSQL versions.
+
+
+
+2. Initialize the Cluster
+
+Set up multiple PostgreSQL nodes with PGD installed.
+
+Use pgdctl or efm (Enterprise Failover Manager) to configure the cluster.
+
+
+
+3. Configure Active-Active Replication
+
+Enable bi-directional replication between nodes.
+
+Define conflict resolution policies.
+
+
+
+4. Monitor and Manage
+
+Use EDB Postgres Enterprise Manager for monitoring.
+
+Set up alerting and automated failover mechanisms.
+
+
+
+
+
+---
+
+Use Cases for EDB PGD
+
+✅ Financial Systems → Low-latency global transactions.
+✅ E-commerce & Retail → Multiple regional databases with consistent inventory.
+✅ Government & Compliance → High availability for critical applications.
+✅ IoT & Analytics → Distributed data ingestion and processing.
+
+
+---
+
+Is EDB PGD the Right Choice?
+
+If you need a reliable, scalable, and officially supported active-active PostgreSQL setup, EDB PGD is one of the best options. It eliminates the complexity of DIY replication solutions and provides enterprise-grade support.
+
+Would you like a step-by-step guide for setting up PGD in your environment?
+
+
