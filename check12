@@ -1,0 +1,1 @@
+psql -U your_user -d your_database -t -c "SELECT 'VACUUM ANALYZE ' || schemaname || '.' || tablename || ';' FROM pg_tables WHERE schemaname = 'your_schema';" | psql -U your_user -d your_database
