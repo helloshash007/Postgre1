@@ -1,0 +1,17 @@
+PostgreSQL 14.17 (released on Feb 20, 2025) includes:
+
+1. Fix for libpq Quoting Functions – PQescapeLiteral() and PQescapeIdentifier() now correctly respect string length parameters and handle invalid encoding more safely.
+
+
+2. Fix for Partitioned Table Triggers – Resolves a crash issue when both AFTER UPDATE and AFTER DELETE triggers use transition tables in partitioned tables.
+
+
+
+This release focuses on stability and bug fixes rather than performance improvements.
+
+
+PostgreSQL 14.17 fixes issues in libpq quoting functions and prevents crashes with triggers on partitioned tables. It improves stability but does not directly impact query performance.
+
+
+
+
