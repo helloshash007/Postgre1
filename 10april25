@@ -1,0 +1,47 @@
+The failover time for EDB EFM (Enterprise Failover Manager) to switch from a primary to a secondary node typically falls in the range of:
+
+5 to 10 seconds (default behavior)
+
+However, this time can vary depending on several factors:
+
+Factors influencing failover time:
+
+1. efm.properties configuration values:
+
+efm.cluster.polling.interval – how often EFM checks the node status.
+
+efm.shutdown.timeout – how long it waits before forcefully shutting down a node.
+
+efm.node.timeout – how long a node can be unresponsive before it's considered down.
+
+efm.failover.timeout – time EFM waits before triggering failover.
+
+
+
+2. Network latency between EFM agents and nodes.
+
+
+3. Database recovery time on the secondary node (especially if crash recovery is needed).
+
+
+4. Synchronous vs Asynchronous replication – synchronous setups can take longer if the standby isn't caught up.
+
+
+5. Load on the secondary node at the time of failover.
+
+
+
+Example Scenario:
+
+With these typical values:
+
+efm.node.timeout=10
+efm.cluster.polling.interval=2
+efm.failover.timeout=10
+
+Failover would take around 10–15 seconds under ideal conditions.
+
+If you're aiming for faster failover, you can tweak these values, but be careful not to trigger false positives due to transient issues.
+
+Want help tuning these values for your setup?
+
