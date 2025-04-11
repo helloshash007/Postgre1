@@ -1,0 +1,87 @@
+Got it! Here's the EFM vs VCS comparison for PostgreSQL 14 in a plain, non-tabular format—easy to copy into a GitHub README or any plain text file:
+
+
+---
+
+EFM (Enterprise Failover Manager)
+
+Type: Application-level failover tool
+
+PostgreSQL Integration: Native support for PostgreSQL
+
+Version Support: Officially supports PostgreSQL 14
+
+Failover Mechanism: Monitors DB and promotes standby to primary
+
+Fencing (STONITH): Basic support via shutdown scripts
+
+Split-brain Handling: Uses witness node or majority quorum
+
+Configuration Complexity: Simple, fast setup
+
+Monitoring Scope: PostgreSQL processes, replication lag, availability
+
+GUI/CLI: CLI & basic web interface
+
+Dependency Management: Limited to PostgreSQL
+
+Custom Scripting Support: Supports hooks/scripts
+
+Cost: Free (comes with EDB or open source)
+
+OS Support: Primarily Linux
+
+Logging and Alerts: Basic
+
+Performance Overhead: Minimal
+
+Use Case: Simple PostgreSQL HA
+
+Community & Support: Good support from EDB and community
+
+
+
+---
+
+VCS (Veritas Cluster Server)
+
+Type: OS-level high availability (HA) cluster
+
+PostgreSQL Integration: Requires custom agents or scripts
+
+Version Support: Requires manual configuration for PostgreSQL 14
+
+Failover Mechanism: Handles node and service-level failover
+
+Fencing (STONITH): Advanced fencing mechanisms
+
+Split-brain Handling: Sophisticated I/O fencing to prevent split-brain
+
+Configuration Complexity: Complex configuration
+
+Monitoring Scope: Complete node, network, and application stack
+
+GUI/CLI: Full-featured CLI & Veritas Cluster Manager GUI
+
+Dependency Management: Supports multiple service and resource dependencies
+
+Custom Scripting Support: Extensive scripting and automation support
+
+Cost: Licensed, commercial product
+
+OS Support: Cross-platform (Linux, Unix, Windows)
+
+Logging and Alerts: Advanced, customizable alerts and logs
+
+Performance Overhead: Moderate due to broader monitoring scope
+
+Use Case: Enterprise-grade multi-tier HA setup
+
+Community & Support: Commercial support from Broadcom (Veritas)
+
+
+
+---
+
+Let me know if you want this in a specific format like AsciiDoc or Markdown without tables.
+
