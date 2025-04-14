@@ -1,0 +1,3 @@
+Delayed::Job.where("locked_at < ?", 1.day.ago).delete_all
+
+Delayed::Job.where.not(locked_at: nil).update_all(locked_at: nil, locked_by: nil)
