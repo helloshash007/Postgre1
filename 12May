@@ -1,0 +1,116 @@
+EFM (Enterprise Failover Manager) is a high-availability failover tool used in EDB PostgreSQL (EnterpriseDB) environments. It's designed to monitor, manage, and automate failover between primary and standby nodes in a PostgreSQL cluster, ensuring minimal downtime and consistent data availability.
+
+
+---
+
+EFM Overview
+
+EFM monitors PostgreSQL nodes (primary, standby, and witness).
+
+It detects failures and can automatically promote a standby to primary.
+
+Other nodes are updated with the new topology (like reconfiguring recovery.conf).
+
+A witness node is optional but recommended to avoid split-brain situations.
+
+
+
+---
+
+Primary-Secondary Switchover Concept
+
+Failover (Unplanned switch)
+
+Occurs when the primary node fails unexpectedly.
+
+EFM promotes a suitable standby to primary based on the health, lag, and quorum.
+
+EFM updates other standbys to follow the new primary.
+
+
+Switchover (Planned switch)
+
+Manual and planned transition of roles between primary and standby.
+
+Used for maintenance, patching, or load balancing.
+
+Ensures minimal or zero data loss since it's pre-coordinated.
+
+
+
+---
+
+Sequence of Switchover (Manual Planned Switchover)
+
+1. Identify the target standby you want to promote.
+
+
+2. Ensure the target standby is fully synchronized (minimal replication lag).
+
+
+3. Pause writes or inform applications to drain connections from the current primary.
+
+
+4. Run EFM switchover command (on the current primary or via EFM control utility):
+
+efm promote <cluster-name>
+
+
+5. EFM promotes the standby and updates the cluster topology.
+
+
+6. Restart/reconfigure the old primary to follow the new primary as a standby.
+
+
+
+
+---
+
+Deciding the Switchover Sequence
+
+To decide the sequence or choose the target standby during failover or switchover, consider:
+
+1. Replication Lag:
+
+Prefer standbys with the least lag.
+
+
+
+2. Health Status:
+
+Use EFM’s internal monitoring or pg_stat_replication to check for streaming and replay status.
+
+
+
+3. Node Priority:
+
+EFM allows assigning promotion priority via efm.properties.
+
+Lower numbers = higher priority (e.g., priority=1 is promoted before priority=2).
+
+
+
+4. Network Latency:
+
+Choose a node with better connectivity to applications or external systems.
+
+
+
+5. Application Affinity:
+
+Select standby nodes in the same region/datacenter as the apps when possible.
+
+
+
+6. Witness Availability:
+
+For automatic failover, ensure quorum (majority) is available.
+
+
+
+
+
+---
+
+Would you like a visual diagram showing the EFM cluster and switch-over flow?
+
