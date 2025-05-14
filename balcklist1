@@ -1,0 +1,4 @@
+Here’s a 50-word write-up:
+
+In PostgreSQL with EFM, writes must go to the primary node to ensure data consistency. Reads can be distributed across standby nodes, helping balance the load. However, certain features like logical replication (before PostgreSQL 16) require access to the primary, while PostgreSQL 16 allows logical decoding from standby nodes.
+
