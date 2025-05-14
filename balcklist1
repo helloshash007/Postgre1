@@ -2,3 +2,359 @@ Here’s a 50-word write-up:
 
 In PostgreSQL with EFM, writes must go to the primary node to ensure data consistency. Reads can be distributed across standby nodes, helping balance the load. However, certain features like logical replication (before PostgreSQL 16) require access to the primary, while PostgreSQL 16 allows logical decoding from standby nodes.
 
+
+
+With PostgreSQL 14 and Enterprise Failover Manager (EFM), enabling logical replication from a standby (replica) database is not directly supported — PostgreSQL only supports logical replication from the primary node.
+
+Key Points:
+
+1. Logical replication requires a writable source:
+
+PostgreSQL does not support logical replication from physical standby nodes because they are read-only and replay WALs.
+
+Logical replication requires logical decoding, which cannot run on a physical standby.
+
+
+
+2. Qlik replication options:
+
+If your goal is to replicate to Qlik (e.g., Qlik Replicate or Qlik Sense), it typically connects to the primary PostgreSQL database or a logical replication slot on it.
+
+If you want to offload replication traffic from the primary, consider:
+
+Setting up a logical replica (using a separate PostgreSQL instance subscribed to logical replication).
+
+Or creating a read-only replica using a logical decoding plugin like pgoutput, wal2json, or a third-party tool.
+
+
+
+
+3. Workaround:
+
+If you need to replicate from a standby for HA or offload reasons:
+
+Promote the standby temporarily to perform logical decoding — not ideal in production.
+
+Or, create a logical replication slot on the primary, then let Qlik consume from that.
+
+
+
+
+
+Recommended Setup:
+
+Keep logical replication on the primary node.
+
+Use EFM to monitor failover — during failover, recreate the logical slot on the new primary or automate re-subscription.
+
+
+Let me know your specific Qlik product and replication goal — I can suggest an architecture or workaround if needed.
+
+
+
+Yes, you're correct — starting with PostgreSQL 16, there is a significant enhancement that helps with this:
+
+PostgreSQL 16 Enhancement:
+
+PostgreSQL 16 introduced support for logical decoding on standby servers. This means:
+
+You can now create logical replication slots on a physical standby.
+
+This allows tools like Qlik Replicate to consume logical changes from a standby node instead of the primary.
+
+It's particularly useful in high-availability setups (e.g., with EFM), where you want to offload replication traffic from the primary server.
+
+
+Key Requirements in Postgres 16:
+
+To enable logical replication from standby:
+
+1. Enable WAL decoding on the standby:
+
+Set wal_level = logical on the primary.
+
+
+
+2. Set primary_slot_name on the standby to use a physical replication slot.
+
+
+3. Enable logical_decoding_work_mem and replication permissions as needed.
+
+
+4. Set hot_standby_feedback = on to reduce conflict risk.
+
+
+5. Ensure archive_mode and max_replication_slots are appropriately configured.
+
+
+
+With EFM:
+
+EFM manages promotion of the standby when needed.
+
+From Postgres 16 onward, your logical replication consumer (e.g., Qlik) can point to a read-only replica, allowing continuous logical decoding without touching the primary.
+
+On failover, some manual slot reconfiguration or re-pointing may still be needed depending on tool support.
+
+
+Summary:
+
+Version	Logical Replication from Standby	Notes
+
+PG 14	No	Only from primary
+PG 16	Yes	With correct setup, standby can serve logical decoding
+
+
+Let me know if you want a sample config for logical decoding from standby on PG16 with EFM.
+
+
+
+Here’s a 50-word write-up:
+
+In PostgreSQL with EFM, writes must go to the primary node to ensure data consistency. Reads can be distributed across standby nodes, helping balance the load. However, certain features like logical replication (before PostgreSQL 16) require access to the primary, while PostgreSQL 16 allows logical decoding from standby nodes.
+
+
+
+Here’s a concise write-up on Fault Tolerance of EFM with PostgreSQL 14 – Use Case and Expected Behavior:
+
+
+---
+
+Use Case:
+In a high-availability PostgreSQL 14 setup with EFM (Enterprise Failover Manager), fault tolerance ensures minimal downtime during a primary database failure. For example, in a 3-node cluster (1 primary, 2 standbys), EFM continuously monitors node health.
+
+Expected Behavior:
+
+If the primary fails, EFM automatically promotes the most up-to-date standby to primary.
+
+Application traffic is redirected to the new primary using virtual IP or reconfiguration.
+
+The failed node, once recovered, re-joins as a standby.
+
+No manual intervention is required, ensuring continuous service with minimal data loss (based on synchronous/asynchronous replication).
+
+
+
+---
+
+Let me know if you want this tailored further for Confluence or documentation.
+
+Here’s a concise write-up on EFM Fault Tolerance When One Secondary Goes Down:
+
+
+---
+
+Use Case:
+In a PostgreSQL 14 setup with EFM, if one secondary (standby) node goes down, the system will continue functioning with the remaining secondary. The primary database remains operational, and reads can still be served by the remaining standby.
+
+Expected Behavior:
+
+The failed standby node is detected by EFM, which triggers alerts but does not cause a failover since the primary and remaining standby are still operational.
+
+The application can continue reading from the active standby, and writes will still be directed to the primary node.
+
+Once the failed secondary node is restored, EFM automatically re-integrates it as a standby, resuming replication.
+
+
+
+---
+
+This setup provides fault tolerance with minimal disruption to read operations. Let me know if you'd like more detail on specific configurations!
+
+
+Here’s a concise write-up on EFM Fault Tolerance When One Data Center Goes Down:
+
+
+---
+
+Use Case:
+In a multi-data center setup with PostgreSQL 14 and EFM, if an entire data center goes down, EFM ensures business continuity by promoting a standby in another data center to primary.
+
+Expected Behavior:
+
+EFM detects the failure of the primary or any standby in the affected data center.
+
+If the primary fails, EFM automatically promotes the most up-to-date standby in the other data center to primary.
+
+Applications are redirected to the new primary through virtual IP or DNS changes.
+
+The failed data center can be recovered and its nodes re-integrated as standbys, resuming replication with the new primary.
+
+
+Result:
+The system remains operational with minimal downtime, ensuring both high availability and fault tolerance during data center outages.
+
+
+---
+
+This setup provides resilience in the face of full data center failures. Let me know if you need more technical details for implementation!
+
+
+Here’s a concise write-up on EFM Fault Tolerance When All Standbys Go Down:
+
+
+---
+
+Use Case:
+In a PostgreSQL 14 setup with EFM, if all standby nodes go down, the system’s fault tolerance mechanism will rely on the primary node for continued operation.
+
+Expected Behavior:
+
+Primary Node Remains Operational: Even if all standbys fail, the primary node continues handling read and write operations.
+
+No Automatic Failover: Since there are no standbys to promote, EFM won’t initiate failover. The primary continues serving traffic without redundancy.
+
+Replication Stops: With no available standbys, replication from the primary to standbys halts. When standbys are restored, replication resumes.
+
+Alerts and Monitoring: EFM detects the failure of all standbys and triggers alerts for intervention (e.g., restoring or promoting new standbys).
+
+
+Result:
+The primary node remains functional, but there’s no redundancy or read scaling until standbys are restored. Once restored, replication resumes and the system regains fault tolerance.
+
+
+---
+
+This setup emphasizes the importance of maintaining at least one standby for high availability. Let me know if you need more details on recovery strategies!
+
+
+Here’s a concise write-up on EFM Fault Tolerance When Primary Goes Down and Standby in Same Data Center Fails During Switchover:
+
+
+---
+
+Use Case:
+In a PostgreSQL 14 setup with EFM, if the primary node fails and the standby node in the same data center also fails during switchover, the system may experience a temporary downtime before failover completes.
+
+Expected Behavior:
+
+1. Primary Failure: When the primary node fails, EFM detects the failure and begins the switchover process, attempting to promote one of the standby nodes to primary.
+
+
+2. Standby Failure During Switchover: If the standby in the same data center goes down during this process (due to network, hardware, or other issues), EFM is unable to promote it.
+
+
+3. Switchover Delays: The failover process is delayed until another standby (potentially in a different data center) can be promoted to primary. If no other standby is available, the failover process can take longer, resulting in downtime.
+
+
+4. Possible Downtime: The time taken for EFM to detect the failure, promote a new primary, and redirect traffic can lead to downtime ranging from a few seconds to several minutes, depending on the recovery time of other standbys and network configurations.
+
+
+5. Failover Completion: Once a standby is successfully promoted to primary, replication resumes, and traffic is directed to the new primary node.
+
+
+
+Result:
+If all standbys in the same data center fail, the system will experience some downtime until a standby from another data center is promoted, leading to temporary unavailability during the failover process.
+
+
+---
+
+This scenario highlights the importance of geographically distributed standbys for ensuring availability during failovers. Let me know if you need more specifics on configuring high-availability in multi-data center environments!
+
+Here’s a concise write-up on EFM Rolling Update with Minimum Downtime:
+
+
+---
+
+Use Case:
+An EFM rolling update involves applying updates to PostgreSQL nodes (primary or standbys) with minimal downtime while maintaining high availability.
+
+Expected Behavior:
+
+1. Preparation: Ensure that all nodes are synchronized and replication is up to date. Backup configurations and data.
+
+
+2. Standby Update First: Begin the update process on the standby nodes one by one, rather than on the primary. This avoids any impact on write operations.
+
+
+3. Promotion of Standby: Once a standby is successfully updated, EFM can promote it to primary if needed, ensuring that the system remains operational without downtime.
+
+
+4. Failover Handling: During the update, if a failover is required, EFM automatically promotes a standby (if not already promoted) and ensures replication continues.
+
+
+5. Primary Update Last: Finally, the primary node is updated. If failover to a standby occurred earlier, this would be the most recent node. After the update, replication is restored from the new primary.
+
+
+6. Minimal Downtime: With proper configuration, updates can be completed with negligible downtime, as failover ensures that the system remains operational throughout the process.
+
+
+
+Result:
+The rolling update process ensures continuous availability by updating one node at a time while maintaining the cluster's integrity, with downtime minimized to the necessary failover or switchover window.
+
+
+---
+
+By following this strategy, PostgreSQL clusters with EFM can be updated with minimal disruption, ensuring high availability during maintenance. Let me know if you need specific steps or configurations!
+
+Here’s a concise write-up on Database Deployment Strategy on EFM:
+
+
+---
+
+Use Case:
+A PostgreSQL deployment strategy with Enterprise Failover Manager (EFM) ensures high availability, fault tolerance, and minimal downtime during deployment, while maintaining smooth replication and failover mechanisms.
+
+Key Components of the Strategy:
+
+1. Cluster Setup:
+
+Primary and Standby Nodes: Set up at least one primary node and multiple standby nodes across data centers to ensure geographical redundancy.
+
+EFM Configuration: Use EFM to monitor node health, handle failover, and automate the promotion of the standby node to primary if the current primary fails.
+
+
+
+2. Deployment Process:
+
+Rolling Updates: Perform rolling updates on standby nodes one at a time, ensuring the primary node remains available for writes. After updating a standby, promote it to primary, update the old primary, and restore replication.
+
+Database Schema Changes: Deploy schema changes (e.g., DDL) in a non-blocking manner using transactional scripts or pt-online-schema-change to minimize impact on availability.
+
+Replication Considerations: Always test replication after any deployment to ensure data consistency and avoid lag between primary and standbys.
+
+
+
+3. Fault Tolerance:
+
+Automatic Failover: EFM automatically detects primary node failures and promotes a standby to primary, reducing the need for manual intervention.
+
+Health Checks: EFM continuously monitors the health of all nodes. If a node becomes unavailable, it’s automatically removed from the cluster until restored.
+
+
+
+4. Backup and Recovery:
+
+Automated Backups: Implement regular point-in-time backups from the primary node.
+
+Disaster Recovery: In the event of a catastrophic failure, EFM can promote a secondary to primary, allowing recovery with minimal data loss.
+
+
+
+5. Zero-Downtime Deployments:
+
+Ensure that deployment occurs during a low-traffic window.
+
+Apply changes gradually, leveraging standbys to prevent a full downtime window.
+
+Use failover and switchover techniques to avoid downtime during maintenance.
+
+
+
+
+Expected Outcome:
+
+Minimal downtime during deployments due to rolling updates and automatic failovers.
+
+High availability through continuous replication and promotion of standbys.
+
+Efficient disaster recovery with automated failover and backup strategies.
+
+
+
+---
+
+This strategy ensures continuous operation, data consistency, and high availability throughout database deployments with EFM. Let me know if you need further details or specific steps for your deployment process!
+
