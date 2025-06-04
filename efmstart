@@ -1,0 +1,207 @@
+Here's a comprehensive End-to-End Testing Strategy for migrating your PostgreSQL database from VCS to an EFM (Enterprise Failover Manager) cluster using logical replication with two EFM servers.
+
+
+---
+
+✅ 1. Pre-Migration Validation
+
+Before starting the migration, validate the following:
+
+Baseline schema & data snapshot from VCS-based PostgreSQL.
+
+Application read/write baseline using production-like test cases.
+
+Confirm logical replication prerequisites:
+
+PostgreSQL version ≥ 10.
+
+WAL level set to logical.
+
+Publications & subscriptions configured.
+
+Replication slots & monitoring enabled.
+
+
+Network connectivity & authentication (passwordless SSH or certificates) between EFM servers and replicas.
+
+
+
+---
+
+✅ 2. Migration Execution Validation
+
+When the database is migrated:
+
+Perform logical replication dry-run in staging.
+
+Use pglogical or native publication/subscription to replicate from source (VCS) to new EFM primary node.
+
+Confirm:
+
+Tables being replicated match.
+
+Initial snapshot applied.
+
+Replication lag is within threshold.
+
+
+Validate application connectivity to new EFM cluster using VIP or HAProxy (if configured).
+
+Document failover configuration and test scripts.
+
+
+
+---
+
+✅ 3. EFM Cluster Testing Plan
+
+A. Cluster Stability Tests:
+
+Test EFM node startup, shutdown, and recovery.
+
+Simulate primary failover (graceful and crash scenarios).
+
+Check automatic promotion of standby.
+
+Validate standby catches up with new primary after failover.
+
+
+B. Replication Consistency Tests:
+
+Insert/update/delete data on EFM primary.
+
+Ensure changes replicate to standby node via logical replication.
+
+Use pg_stat_replication and pg_subscription views to validate status.
+
+
+C. Replication Delay Monitoring:
+
+Measure replication lag using pg_last_wal_replay_lsn and pg_current_wal_lsn.
+
+Include alert thresholds (e.g., >30s delay).
+
+
+
+---
+
+✅ 4. Application Integration Tests
+
+A. Connection Pooling & Routing:
+
+Ensure application connects via load balancer or EFM VIP.
+
+Validate failover does not require app restart (if applicable).
+
+Test application pooler (e.g., PgBouncer) behavior during failover.
+
+
+B. Functional Tests:
+
+Run application smoke tests: login, search, update, delete, etc.
+
+Include long-running transactions and bulk inserts.
+
+
+C. Transaction Consistency Checks:
+
+Write heavy-load transactions to test commit/rollback during replication.
+
+Simulate network partition and verify app behavior.
+
+
+D. Failover Scenarios:
+
+1. Manual failover (planned primary switch).
+
+
+2. Crash recovery (simulate kill -9 on primary).
+
+
+3. Network partition (block port 5432 or isolate node).
+
+
+
+Verify:
+
+App reconnects gracefully.
+
+No data loss or duplication.
+
+Logs show expected failover behavior.
+
+
+
+---
+
+✅ 5. Data Validation Strategy
+
+After logical replication is stable:
+
+Run row-count checks and checksums for each table between source and target.
+
+Randomly validate records using:
+
+SELECT * FROM table WHERE id = '<sample-id>';
+
+Run hash/diff checks or tools like pg_comparator.
+
+
+
+---
+
+✅ 6. Monitoring & Alerting
+
+Ensure monitoring for:
+
+Node health (CPU, disk, memory).
+
+EFM agent status on all nodes.
+
+Replication lag and slot health.
+
+WAL archive status (if using archiving).
+
+
+Integrate with tools like:
+
+Prometheus + Grafana
+
+Nagios/Zabbix
+
+ELK for log audit
+
+
+
+---
+
+✅ 7. Rollback Strategy
+
+Ensure logical replication can be paused/stopped without data loss.
+
+Take consistent snapshots before cutover.
+
+Validate backup and PITR restoration steps.
+
+
+
+---
+
+✅ 8. Final Cutover Checklist
+
+Freeze writes to VCS PostgreSQL.
+
+Validate last replication timestamp.
+
+Promote EFM primary.
+
+Repoint application connections.
+
+Monitor post-migration behavior for at least 24 hours.
+
+
+
+---
+
+Would you like me to generate a Confluence-ready document or checklist format for this testing plan?
+
