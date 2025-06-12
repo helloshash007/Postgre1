@@ -1,0 +1,264 @@
+Here’s a PowerPoint outline with detailed slide content for your EDB BDR (Bi-Directional Replication) solution presentation. The slides are structured to cover:
+
+1. What is BDR
+
+
+2. Architecture
+
+
+3. Pros and Cons
+
+
+4. How it works with heavy data/transactions
+
+
+5. Minimum CPU and RAM requirements
+
+
+6. Compatibility with other logical replication setups
+
+
+7. POC steps with 4TB data
+
+
+
+
+---
+
+✅ Slide 1: Title Slide
+
+Title: EDB BDR Solution Overview
+
+Subtitle: High Availability & Multi-Master PostgreSQL
+
+Presented by: [Your Name]
+
+Date
+
+
+
+---
+
+✅ Slide 2: What is EDB BDR?
+
+BDR (Bi-Directional Replication) is an advanced multi-master replication solution by EDB.
+
+Built on top of PostgreSQL with custom enhancements.
+
+Enables active-active clusters where nodes can accept writes.
+
+Ideal for high availability, distributed applications, and zero-downtime operations.
+
+
+
+---
+
+✅ Slide 3: BDR Architecture
+
+Cluster Nodes: Multiple PostgreSQL nodes (up to 48 in BDR 3+)
+
+Replication Method: Logical replication using EDB enhancements.
+
+Conflict Handling: Built-in conflict detection and resolution strategies.
+
+Topology Options:
+
+Full mesh
+
+Hierarchical (for geo-distributed)
+
+
+Global Sequence Generator for consistent sequences.
+
+
+Include diagram:
+
+┌──────────┐     ┌──────────┐
+│  Node 1  │◄──►│  Node 2  │
+└──────────┘     └──────────┘
+      ▲               ▲
+      ▼               ▼
+  ┌──────────┐     ┌──────────┐
+  │  Node 3  │◄──►│  Node 4  │
+  └──────────┘     └──────────┘
+
+
+---
+
+✅ Slide 4: BDR: Pros and Cons
+
+Pros:
+
+Active-Active replication (multi-master)
+
+High availability and fault tolerance
+
+Minimal downtime during upgrades
+
+Supports distributed applications
+
+Global DDL replication & conflict resolution
+
+
+Cons:
+
+Complexity in setup & monitoring
+
+Higher resource utilization
+
+DDL changes require coordination
+
+Not ideal for write-heavy workloads without planning
+
+
+
+---
+
+✅ Slide 5: BDR with Huge Data & Heavy Transactions
+
+Efficient with large datasets using logical decoding and asynchronous apply.
+
+Best practice: Use table partitioning and replication sets to isolate critical tables.
+
+Monitor apply lag using bdr.node_status.
+
+Recommended to disable heavy autovacuum during peak sync times.
+
+Use parallel apply workers to improve sync for high TPS workloads.
+
+
+
+---
+
+✅ Slide 6: Minimum CPU and RAM Requirements
+
+For 1 TB or more data with moderate TPS:
+
+CPU: Minimum 16 vCPU (multi-core for parallelism)
+
+RAM: 64–128 GB depending on table size and connection count
+
+
+For 4+ TB with heavy batch transactions:
+
+CPU: 20–32 vCPU
+
+RAM: 128–160 GB
+
+
+Use work_mem, maintenance_work_mem, wal_buffers, and replication slots tuning for optimization.
+
+
+
+---
+
+✅ Slide 7: Can We Use Logical Replication Separately?
+
+Yes, but with constraints:
+
+You can configure additional logical replication from BDR nodes to other PostgreSQL databases.
+
+Use replication sets to filter tables.
+
+Avoid conflict by ensuring:
+
+Target DB is read-only or isolated.
+
+Changes to replicated tables don't occur on both sides.
+
+
+
+How:
+
+Create a publication on BDR node
+
+Create a subscription on external DB
+
+
+-- On BDR node
+CREATE PUBLICATION app_pub FOR TABLE users, transactions;
+
+-- On target logical replica
+CREATE SUBSCRIPTION app_sub CONNECTION 'host=... user=... dbname=...' PUBLICATION app_pub;
+
+
+---
+
+✅ Slide 8: POC Plan with 4TB Data
+
+Goal: Validate BDR performance and consistency with 4 TB dataset under load.
+
+Steps:
+
+1. Provision Environment
+
+3 BDR nodes, each with 20 vCPU & 160 GB RAM
+
+Shared storage for WAL and backups
+
+
+
+2. Install EDB Postgres + BDR plugin
+
+
+3. Create initial schema and load 4TB data
+
+Use pg_basebackup or logical dump
+
+Index and partition heavy tables
+
+
+
+4. Initiate BDR cluster
+
+bdr_init_copy or bdr_create_group
+
+
+
+5. Run parallel writes & batch operations
+
+Simulate production load
+
+
+
+6. Validate replication lag and consistency
+
+Check bdr.replication_queue, apply lag, and conflicts
+
+
+
+7. Perform failover test
+
+Promote another node and test application continuity
+
+
+
+8. Test logical replication to external DB
+
+
+9. Monitor using pg_stat_activity and EDB tools
+
+
+10. Prepare Performance Report
+
+
+
+
+---
+
+✅ Slide 9: Conclusion & Recommendations
+
+BDR is a robust solution for mission-critical, HA, and distributed PostgreSQL needs.
+
+Plan carefully for schema design, replication lag, and resource sizing.
+
+Logical replication to other DBs is possible but must be handled with care.
+
+POC with 4TB validates readiness and performance benchmarks.
+
+
+
+---
+
+Would you like me to generate this as a downloadable .pptx PowerPoint presentation with visuals and diagrams?
+
