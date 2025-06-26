@@ -1,0 +1,179 @@
+Thanks, Shashank. Here's the final updated Confluence page that includes:
+
+PostgreSQL 12 to 14 comparison
+
+CPU/load utilization via AppD
+
+Recommendation for PostgreSQL 16/17 + EFM
+
+Highlight on increasing data size (~5GB/day)
+
+Need for an archival server
+
+
+
+---
+
+Title: Database Performance & Growth Analysis on Virtual Machine – PostgreSQL 12 to 14 (Jan–Present)
+
+
+---
+
+1. Introduction
+
+This document summarizes the database performance trends for PostgreSQL running on a virtual machine (VM), based on six months of AppDynamics (AppD) data and capacity observations. It covers version upgrade from PostgreSQL 12 (Jan–Apr) to PostgreSQL 14 (May–Present), evaluates CPU and system load, and provides recommendations including PostgreSQL 16/17 upgrade, Enterprise Failover Manager (EFM) adoption, and a new data archival strategy to handle continuous growth.
+
+
+---
+
+2. Current VM Configuration
+
+Parameter	Value
+
+vCPU	20 Cores
+RAM	148 GB
+OS	RHEL 8
+PostgreSQL	v12 (Jan–Apr), v14 (May–Present)
+Monitoring Tool	AppDynamics
+Avg. Daily Data Growth	~5 GB/day
+
+
+
+---
+
+3. Observed Performance Trends (Jan–Jun)
+
+3.1 CPU Utilization
+
+PostgreSQL 14 showed a ~5% performance improvement compared to v12.
+
+However, CPU spikes >80% continue during peak data processing hours, especially in reporting and batch jobs.
+
+
+3.2 Load Average
+
+PostgreSQL 14 slightly improved system responsiveness, but load spikes remain high due to heavy concurrency and long-running queries.
+
+
+3.3 Data Volume Growth
+
+The system is currently ingesting ~5 GB of new data daily.
+
+Over time, this accumulation increases pressure on indexes, autovacuum, and overall query performance.
+
+Data retention strategy is lacking, contributing to bloated tables and performance overhead.
+
+
+
+---
+
+4. Key Challenges
+
+PostgreSQL 14 alone does not sufficiently handle current and projected workload.
+
+Increasing data volume without offloading/archive causes:
+
+Index bloat
+
+Longer vacuum cycles
+
+Slower full scans and joins
+
+
+Current VM performs optimally, but long-term scalability is constrained.
+
+
+
+---
+
+5. Options Evaluation
+
+Option	Description	Drawbacks
+
+Upgrade to 32-core Physical Server	Add more hardware to handle load	Costly, less flexible, limited HA features
+Upgrade to PostgreSQL 16/17 + EFM (✅ Recommended)	Modern features + HA with Enterprise Failover Manager	Requires coordinated rollout
+Query Optimization	Target slow queries, optimize indexes and vacuums	Requires analysis and testing cycles
+Introduce Archival Server (✅ Recommended)	Offload historical/unused data to a separate server	Requires ETL logic and scheduling
+
+
+
+---
+
+6. Recommendations
+
+We propose a dual strategy for performance and scalability:
+
+6.1 PostgreSQL 16/17 + EFM
+
+Improved parallelism, index management, and vacuum control.
+
+EFM enables automated failover and robust high availability within VM.
+
+
+6.2 Archival Server Setup
+
+Offload old/historical data based on business-defined retention rules.
+
+Implement partitioning or ETL to periodically move data to an archival instance.
+
+Reduces load on primary database and improves OLTP query performance.
+
+
+
+---
+
+7. Next Steps
+
+1. Deploy PostgreSQL 16 in lower environment and validate improvements.
+
+
+2. Review top bloated tables and design archival policies (based on access patterns).
+
+
+3. Finalize archival server specs and ETL job frequency (e.g., daily/weekly).
+
+
+4. Plan and test EFM integration for production HA.
+
+
+5. Monitor post-upgrade and archive impact using AppD and PostgreSQL metrics.
+
+
+
+
+---
+
+8. Supporting Graphs (AppDynamics)
+
+(Attach screenshots with annotations for each)
+
+Graph 1: CPU Utilization – Jan to Jun (PostgreSQL 12 vs 14)
+
+Graph 2: Load Average Trends
+
+Graph 3: Data Volume Growth – Estimated per Day
+
+Graph 4: Autovacuum/Index Bloat Stats (Optional)
+
+
+
+---
+
+9. Conclusion
+
+The upgrade from PostgreSQL 12 to 14 delivered minor gains (~5%), but system load and CPU spikes persist. Given the current data growth (~5 GB/day) and no archival mechanism, it is critical to act now.
+
+We recommend:
+
+Upgrading to PostgreSQL 16/17 with EFM
+
+Implementing an archival server to offload older data
+
+
+This combined approach will optimize performance, ensure scalability, reduce costs, and extend the lifecycle of the current VM infrastructure (20-core, 148 GB RAM) without switching to a physical server.
+
+
+---
+
+Let me know if you'd like this exported in Confluence markup or need help creating visual graphs using your AppD data.
+
